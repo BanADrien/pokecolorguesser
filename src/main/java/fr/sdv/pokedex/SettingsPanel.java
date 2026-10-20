@@ -2,12 +2,10 @@ package fr.sdv.pokedex;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingWorker;
@@ -42,9 +40,8 @@ public final class SettingsPanel extends JPanel {
 
     private final JSpinner sectionsSpinner;
     private final JSpinner questionsSpinner;
-    private final JRadioButton choiceMode = new JRadioButton("QCM – 4 propositions");
-    private final JRadioButton typingMode = new JRadioButton("Saisie libre (nom français ou anglais)");
     private final JCheckBox showTypesBox = new JCheckBox("Afficher les types en indice");
+    private final JCheckBox ignoreOutlineBox = new JCheckBox("Ignorer les contours noirs");
     private final List<JCheckBox> generationBoxes = new ArrayList<>(); // indice 0 : première génération
     private final ColorBandsView preview = new ColorBandsView();
     private final JLabel exampleLabel = new JLabel(" ");
@@ -75,24 +72,19 @@ public final class SettingsPanel extends JPanel {
             save();
         });
 
-        ButtonGroup modes = new ButtonGroup();
-        modes.add(choiceMode);
-        modes.add(typingMode);
-        choiceMode.setSelected(settings.isMultipleChoice());
-        typingMode.setSelected(!settings.isMultipleChoice());
-        choiceMode.addActionListener(e -> {
-            settings.setMultipleChoice(true);
-            save();
-        });
-        typingMode.addActionListener(e -> {
-            settings.setMultipleChoice(false);
-            save();
-        });
-
         showTypesBox.setSelected(settings.isShowTypes());
         showTypesBox.addActionListener(e -> {
             settings.setShowTypes(showTypesBox.isSelected());
             save();
+        });
+
+        ignoreOutlineBox.setSelected(settings.isIgnoreDarkOutline());
+        ignoreOutlineBox.setToolTipText("La couleur d'une bande ne tient pas compte des pixels presque noirs "
+                + "(sauf si la bande n'a que ça)");
+        ignoreOutlineBox.addActionListener(e -> {
+            settings.setIgnoreDarkOutline(ignoreOutlineBox.isSelected());
+            save();
+            updatePreview();
         });
 
         JPanel form = new JPanel(new GridBagLayout());
@@ -128,20 +120,18 @@ public final class SettingsPanel extends JPanel {
 
         c.gridy = 0;
         panel.add(new JLabel("Nombre de sections :"), c);
+        c.weightx = 1; // la place en trop va à droite : le contenu reste calé à gauche
         panel.add(sectionsSpinner, c);
+        c.weightx = 0;
         c.gridy = 1;
         panel.add(new JLabel("Questions par partie :"), c);
         panel.add(questionsSpinner, c);
         c.gridy = 2;
-        panel.add(new JLabel("Mode de réponse :"), c);
-        panel.add(choiceMode, c);
-        c.gridy = 3;
-        c.gridx = 1;
-        panel.add(typingMode, c);
-        c.gridy = 4;
-        c.gridx = 0;
         c.gridwidth = 2;
         c.insets = new Insets(8, 0, 0, 0);
+        panel.add(ignoreOutlineBox, c);
+        c.gridy = 3;
+        c.insets = new Insets(2, 0, 0, 0);
         panel.add(showTypesBox, c);
         return panel;
     }
@@ -235,13 +225,8 @@ public final class SettingsPanel extends JPanel {
 
     /** Un Pokémon au hasard parmi les générations cochées, différent de l'exemple actuel. */
     private void showRandomExample() {
-        List<Pokemon> candidates = new ArrayList<>();
-        for (Pokemon pokemon : pokemons) {
-            if (settings.isGenerationEnabled(pokemon.generation()) && !pokemon.spriteUrl().isEmpty()
-                    && pokemon.id() != example.id()) {
-                candidates.add(pokemon);
-            }
-        }
+        List<Pokemon> candidates = new ArrayList<>(settings.pool(pokemons));
+        candidates.removeIf(pokemon -> pokemon.id() == example.id());
         if (!candidates.isEmpty()) {
             loadExample(candidates.get(random.nextInt(candidates.size())));
         }
@@ -278,10 +263,11 @@ public final class SettingsPanel extends JPanel {
         }.execute();
     }
 
-    /** Le découpage est rapide (image de 96×96) : on le refait à chaque changement du nombre de sections. */
+    /** Le découpage est rapide (image de 96×96) : on le refait à chaque changement de réglage. */
     private void updatePreview() {
         if (exampleSprite != null) {
-            preview.show(ColorBands.from(exampleSprite, settings.getSections()), exampleSprite, true);
+            ColorBands bands = ColorBands.from(exampleSprite, settings.getSections(), settings.isIgnoreDarkOutline());
+            preview.show(bands, exampleSprite, true);
         }
     }
 

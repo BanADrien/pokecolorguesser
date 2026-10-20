@@ -6,7 +6,9 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -22,8 +24,8 @@ public class QuizSettings {
 
     private int sections = 8;
     private int questionCount = 10;
-    private boolean multipleChoice = true;
     private boolean showTypes = false;
+    private boolean ignoreDarkOutline = true;
     private final Set<Integer> generations = new TreeSet<>();
 
     public QuizSettings() {
@@ -48,21 +50,21 @@ public class QuizSettings {
         this.questionCount = Math.clamp(questionCount, MIN_QUESTIONS, MAX_QUESTIONS);
     }
 
-    /** true : QCM à 4 propositions, false : il faut écrire le nom. */
-    public boolean isMultipleChoice() {
-        return multipleChoice;
-    }
-
-    public void setMultipleChoice(boolean multipleChoice) {
-        this.multipleChoice = multipleChoice;
-    }
-
     public boolean isShowTypes() {
         return showTypes;
     }
 
     public void setShowTypes(boolean showTypes) {
         this.showTypes = showTypes;
+    }
+
+    /** true : les contours noirs des sprites ne comptent pas pour la couleur des bandes (voir ColorBands). */
+    public boolean isIgnoreDarkOutline() {
+        return ignoreDarkOutline;
+    }
+
+    public void setIgnoreDarkOutline(boolean ignoreDarkOutline) {
+        this.ignoreDarkOutline = ignoreDarkOutline;
     }
 
     public Set<Integer> getGenerations() {
@@ -86,13 +88,24 @@ public class QuizSettings {
         return true;
     }
 
+    /** Les Pokémon utilisables par le quiz : ceux des générations cochées qui ont une image. */
+    public List<Pokemon> pool(List<Pokemon> pokemons) {
+        List<Pokemon> pool = new ArrayList<>();
+        for (Pokemon pokemon : pokemons) {
+            if (isGenerationEnabled(pokemon.generation()) && !pokemon.spriteUrl().isEmpty()) {
+                pool.add(pokemon);
+            }
+        }
+        return List.copyOf(pool);
+    }
+
     /** Une copie indépendante : une partie en cours n'est pas modifiée si on change les réglages. */
     public QuizSettings copy() {
         QuizSettings copy = new QuizSettings();
         copy.sections = sections;
         copy.questionCount = questionCount;
-        copy.multipleChoice = multipleChoice;
         copy.showTypes = showTypes;
+        copy.ignoreDarkOutline = ignoreDarkOutline;
         copy.generations.clear();
         copy.generations.addAll(generations);
         return copy;
@@ -112,8 +125,11 @@ public class QuizSettings {
         }
         settings.setSections(intOrDefault(properties.getProperty("sections"), settings.sections));
         settings.setQuestionCount(intOrDefault(properties.getProperty("questions"), settings.questionCount));
-        settings.setMultipleChoice(!"saisie".equals(properties.getProperty("mode")));
+        // la clé "mode" des anciennes versions (QCM ou saisie libre) n'existe plus : elle est ignorée
         settings.setShowTypes(Boolean.parseBoolean(properties.getProperty("indiceTypes")));
+        // absente des anciens fichiers : on garde alors la valeur par défaut (true)
+        settings.setIgnoreDarkOutline(Boolean.parseBoolean(
+                properties.getProperty("ignorerContoursNoirs", String.valueOf(settings.ignoreDarkOutline))));
 
         Set<Integer> saved = new TreeSet<>();
         for (String gen : properties.getProperty("generations", "").split(",")) {
@@ -133,8 +149,8 @@ public class QuizSettings {
         Properties properties = new Properties();
         properties.setProperty("sections", String.valueOf(sections));
         properties.setProperty("questions", String.valueOf(questionCount));
-        properties.setProperty("mode", multipleChoice ? "qcm" : "saisie");
         properties.setProperty("indiceTypes", String.valueOf(showTypes));
+        properties.setProperty("ignorerContoursNoirs", String.valueOf(ignoreDarkOutline));
         properties.setProperty("generations",
                 generations.stream().map(String::valueOf).collect(Collectors.joining(",")));
         try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {

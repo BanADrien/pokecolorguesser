@@ -1,5 +1,6 @@
 package fr.sdv.pokedex;
 
+import fr.sdv.pokedex.QuizGame.Result;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Tests de la logique du quiz : comparaison des noms, score, propositions du QCM. */
+/** Tests de la logique du quiz : comparaison des noms, vies, déroulement de la partie et score. */
 class QuizGameTest {
 
     private static final Pokemon DRACAUFEU = pokemon(6, "Dracaufeu", "Charizard");
@@ -39,7 +40,13 @@ class QuizGameTest {
 
     /** Une partie d'une seule question sur ce Pokémon, avec une réponse écrite. */
     private static boolean accepts(Pokemon pokemon, String typed) {
-        return new QuizGame(List.of(pokemon), 1, new Random(0)).answer(typed);
+        return new QuizGame(List.of(pokemon), 1, new Random(0)).answer(typed) == Result.CORRECT;
+    }
+
+    /** Un Pokémon du pool qui n'est pas la bonne réponse (le numéro donné, ou le suivant). */
+    private static Pokemon wrong(QuizGame game, List<Pokemon> pool, int id) {
+        Pokemon pokemon = pool.get(id - 1);
+        return pokemon.id() != game.current().id() ? pokemon : pool.get(id % pool.size());
     }
 
     @Test
@@ -73,29 +80,35 @@ class QuizGameTest {
     void nidoranSymbolIsIgnored() {
         assertTrue(accepts(NIDORAN_F, "Nidoran♀"));
         assertTrue(accepts(NIDORAN_F, "nidoran"));
-        // limite connue : le symbole est enlevé, donc ♀ et ♂ ne sont pas distingués
+        // limite connue : le symbole est enlevé, donc ♀ et ♂ ne sont pas distingués dans un nom écrit
         assertTrue(accepts(NIDORAN_M, "Nidoran♀"));
     }
 
     @Test
-    void newGameStartsAtFirstQuestionWithScoreZero() {
+    void pokemonChosenInTheListIsComparedByNumber() {
+        // choisi dans la liste des suggestions, chaque Nidoran est bien distingué de l'autre
+        assertEquals(Result.WRONG_RETRY, new QuizGame(List.of(NIDORAN_M), 1, new Random(0)).answer(NIDORAN_F));
+        assertEquals(Result.CORRECT, new QuizGame(List.of(NIDORAN_M), 1, new Random(0)).answer(NIDORAN_M));
+    }
+
+    @Test
+    void newGameStartsAtFirstQuestionWithScoreZeroAndAllLives() {
         QuizGame game = new QuizGame(pool(20), 10, new Random(42));
         assertEquals(10, game.questionCount());
         assertEquals(1, game.questionNumber());
         assertEquals(0, game.score());
-        assertFalse(game.isAnswered());
+        assertEquals(QuizGame.LIVES, game.livesLeft());
+        assertEquals(1, game.attempt());
+        assertEquals(List.of(), game.wrongGuesses());
+        assertFalse(game.isQuestionOver());
         assertFalse(game.isLastQuestion());
     }
 
     @Test
-    void eachQuestionHasFourDistinctChoicesIncludingTheAnswer() {
+    void eachPokemonIsAskedOnlyOnce() {
         QuizGame game = new QuizGame(pool(20), 10, new Random(42));
         Set<Integer> asked = new HashSet<>();
         for (int question = 1; question <= game.questionCount(); question++) {
-            List<Pokemon> choices = game.choices();
-            assertEquals(4, choices.size());
-            assertEquals(4, choices.stream().map(Pokemon::id).distinct().count(), "propositions distinctes");
-            assertTrue(choices.contains(game.current()), "la bonne réponse fait partie des propositions");
             assertTrue(asked.add(game.current().id()), "le même Pokémon ne revient pas deux fois");
             game.skip();
             if (!game.isLastQuestion()) {
@@ -106,39 +119,134 @@ class QuizGameTest {
     }
 
     @Test
-    void scoreCountsOnlyCorrectAnswers() {
-        QuizGame game = new QuizGame(pool(20), 3, new Random(7));
+    void wrongAnswerCostsALifeWithoutEndingTheQuestion() {
+        List<Pokemon> pool = pool(10);
+        QuizGame game = new QuizGame(pool, 2, new Random(3));
+        Pokemon wrong = wrong(game, pool, 1);
 
-        assertTrue(game.answer(game.current()), "bonne réponse en QCM");
+        assertEquals(Result.WRONG_RETRY, game.answer(wrong));
+
+        assertEquals(QuizGame.LIVES - 1, game.livesLeft());
+        assertEquals(2, game.attempt(), "deuxième essai");
+        assertFalse(game.isQuestionOver(), "on peut réessayer");
+        assertEquals(List.of(wrong), game.wrongGuesses());
+        assertEquals(0, game.score());
+        assertThrows(IllegalStateException.class, game::next, "la question n'est pas finie");
+    }
+
+    @Test
+    void thirdWrongAnswerLosesTheQuestion() {
+        List<Pokemon> pool = pool(10);
+        QuizGame game = new QuizGame(pool, 2, new Random(3));
+
+        assertEquals(Result.WRONG_RETRY, game.answer(wrong(game, pool, 1)));
+        assertEquals(Result.WRONG_RETRY, game.answer("pas un Pokémon"), "une réponse écrite compte aussi");
+        assertEquals(Result.LOST, game.answer(wrong(game, pool, 3)));
+
+        assertEquals(0, game.livesLeft());
+        assertTrue(game.isQuestionOver());
+        assertEquals(0, game.score());
+        assertEquals(2, game.wrongGuesses().size(), "seuls les Pokémon choisis dans la liste sont retenus");
+    }
+
+    @Test
+    void pokemonFoundAfterErrorsCountsInTheScore() {
+        List<Pokemon> pool = pool(10);
+        QuizGame game = new QuizGame(pool, 2, new Random(3));
+
+        game.answer(wrong(game, pool, 1));
+        game.answer(wrong(game, pool, 2));
+        assertEquals(Result.CORRECT, game.answer(game.current()), "trouvé avec la dernière vie");
+
+        assertEquals(1, game.score());
+        assertEquals(3, game.attempt(), "trouvé au troisième essai");
+        assertEquals(1, game.livesLeft());
+        assertTrue(game.isQuestionOver());
+    }
+
+    @Test
+    void scoreCountsOnlyPokemonFound() {
+        List<Pokemon> pool = pool(20);
+        QuizGame game = new QuizGame(pool, 3, new Random(7));
+
+        assertEquals(Result.CORRECT, game.answer(game.current()), "bon Pokémon choisi dans la liste");
         assertEquals(1, game.score());
         game.next();
 
-        Pokemon wrong = game.choices().stream()
-                .filter(p -> p.id() != game.current().id())
-                .findFirst()
-                .orElseThrow();
-        assertFalse(game.answer(wrong), "mauvaise réponse en QCM");
-        assertEquals(1, game.score());
+        game.skip();
+        assertEquals(1, game.score(), "question passée");
         game.next();
 
-        assertTrue(game.answer(game.current().nameEn().toUpperCase()), "bonne réponse écrite, en anglais");
+        assertEquals(Result.CORRECT, game.answer(game.current().nameEn().toUpperCase()), "nom anglais écrit");
         assertEquals(2, game.score());
         assertTrue(game.isLastQuestion());
     }
 
     @Test
-    void skipCountsAsWrongAnswer() {
-        QuizGame game = new QuizGame(pool(5), 2, new Random(1));
+    void skipEndsTheQuestionAtOnce() {
+        List<Pokemon> pool = pool(5);
+        QuizGame game = new QuizGame(pool, 2, new Random(1));
+        game.answer(wrong(game, pool, 1));
+
         game.skip();
-        assertTrue(game.isAnswered());
+
+        assertTrue(game.isQuestionOver(), "abandon tout de suite, même avec des vies");
+        assertEquals(QuizGame.LIVES - 1, game.livesLeft(), "passer ne coûte pas de vie en plus");
         assertEquals(0, game.score());
     }
 
     @Test
-    void smallPoolLimitsQuestionsAndChoices() {
+    void noAnswerAfterTheEndOfTheQuestion() {
+        List<Pokemon> pool = pool(5);
+        QuizGame found = new QuizGame(pool, 2, new Random(1));
+        found.answer(found.current());
+        assertThrows(IllegalStateException.class, () -> found.answer(found.current()));
+        assertThrows(IllegalStateException.class, () -> found.answer("Pokémon 1"));
+        assertThrows(IllegalStateException.class, found::skip);
+        assertEquals(1, found.score(), "la deuxième réponse ne compte pas");
+
+        QuizGame lost = new QuizGame(pool, 2, new Random(1));
+        for (int i = 0; i < QuizGame.LIVES; i++) {
+            lost.answer("faux");
+        }
+        assertThrows(IllegalStateException.class, () -> lost.answer(lost.current()), "plus de vie");
+        assertThrows(IllegalStateException.class, lost::skip);
+        assertEquals(0, lost.score());
+    }
+
+    @Test
+    void nextQuestionGivesBackAllLives() {
+        List<Pokemon> pool = pool(10);
+        QuizGame game = new QuizGame(pool, 2, new Random(3));
+        game.answer(wrong(game, pool, 1));
+        game.skip();
+
+        game.next();
+
+        assertEquals(QuizGame.LIVES, game.livesLeft());
+        assertEquals(List.of(), game.wrongGuesses(), "les erreurs de la question précédente sont oubliées");
+        assertFalse(game.isQuestionOver());
+    }
+
+    @Test
+    void sectionsDoubleWithEachLostLife() {
+        List<Pokemon> pool = pool(10);
+        QuizGame game = new QuizGame(pool, 1, new Random(3));
+        assertEquals(8, game.sections(8));
+        assertEquals(32, game.sections(32));
+
+        game.answer(wrong(game, pool, 1));
+        assertEquals(16, game.sections(8));
+        assertEquals(64, game.sections(32), "on peut dépasser le maximum des réglages");
+
+        game.answer(wrong(game, pool, 2));
+        assertEquals(32, game.sections(8));
+    }
+
+    @Test
+    void smallPoolLimitsQuestions() {
         QuizGame game = new QuizGame(pool(3), 10, new Random(1));
         assertEquals(3, game.questionCount());
-        assertEquals(3, game.choices().size());
     }
 
     @Test
@@ -147,24 +255,14 @@ class QuizGameTest {
     }
 
     @Test
-    void answeringTwiceIsRefused() {
+    void nextNeedsTheEndOfTheQuestionAndAnotherQuestion() {
         QuizGame game = new QuizGame(pool(5), 2, new Random(1));
-        game.answer(game.current());
-        assertThrows(IllegalStateException.class, () -> game.answer(game.current()));
-        assertThrows(IllegalStateException.class, () -> game.answer("Pokémon 1"));
-        assertThrows(IllegalStateException.class, game::skip);
-        assertEquals(1, game.score(), "la deuxième réponse ne compte pas");
-    }
-
-    @Test
-    void nextNeedsAnAnswerAndAnotherQuestion() {
-        QuizGame game = new QuizGame(pool(5), 2, new Random(1));
-        assertThrows(IllegalStateException.class, game::next, "il faut d'abord répondre");
+        assertThrows(IllegalStateException.class, game::next, "il faut d'abord finir la question");
 
         game.skip();
         game.next();
         assertEquals(2, game.questionNumber());
-        assertFalse(game.isAnswered());
+        assertFalse(game.isQuestionOver());
 
         game.skip();
         assertTrue(game.isLastQuestion());
