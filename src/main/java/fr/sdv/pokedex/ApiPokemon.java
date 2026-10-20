@@ -54,7 +54,7 @@ public class ApiPokemon {
     }
 
     public Pokemon telechargerPokemon(int numero, int generation) throws IOException {
-        // l'espèce donne les noms traduits, la forme par défaut donne les types et les statistiques
+        // l'espèce donne les noms traduits, la forme par défaut donne les types et l'image
         JsonNode espece = lireJson(ADRESSE_API + "pokemon-species/" + numero + "/");
         JsonNode forme = lireJson(adresseFormeParDefaut(espece));
 
@@ -63,42 +63,12 @@ public class ApiPokemon {
         for (JsonNode type : forme.path("types")) {
             pokemon.ajouterType(traduireType(type.path("type").path("name").asText()));
         }
-        // l'API donne la taille en décimètres et le poids en hectogrammes
-        pokemon.setTaille(forme.path("height").asInt() / 10.0);
-        pokemon.setPoids(forme.path("weight").asInt() / 10.0);
-        for (JsonNode statistique : forme.path("stats")) {
-            ajouterStatistique(pokemon, statistique.path("stat").path("name").asText(),
-                    statistique.path("base_stat").asInt());
-        }
         // "front_default" vaut null quand le Pokémon n'a pas d'image
         JsonNode image = forme.path("sprites").path("front_default");
         if (image.isTextual()) {
             pokemon.setAdresseImage(image.asText());
         }
         return pokemon;
-    }
-
-    private void ajouterStatistique(Pokemon pokemon, String nom, int valeur) {
-        switch (nom) {
-            case "hp":
-                pokemon.setPv(valeur);
-                break;
-            case "attack":
-                pokemon.setAttaque(valeur);
-                break;
-            case "defense":
-                pokemon.setDefense(valeur);
-                break;
-            case "special-attack":
-                pokemon.setAttaqueSpeciale(valeur);
-                break;
-            case "special-defense":
-                pokemon.setDefenseSpeciale(valeur);
-                break;
-            case "speed":
-                pokemon.setVitesse(valeur);
-                break;
-        }
     }
 
     private String traduireType(String type) {

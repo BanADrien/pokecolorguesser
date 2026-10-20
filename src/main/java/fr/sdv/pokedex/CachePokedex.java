@@ -11,8 +11,7 @@ import java.util.List;
 public class CachePokedex {
 
     // si le format du fichier change, il faut changer cette ligne : l'ancien fichier sera alors ignoré
-    private static final String EN_TETE =
-            "id;nom;nom_anglais;generation;types;taille_m;poids_kg;pv;attaque;defense;atq_spe;def_spe;vitesse;image";
+    private static final String EN_TETE = "id;nom;nom_anglais;generation;types;image";
 
     private Path fichier;
 
@@ -28,7 +27,7 @@ public class CachePokedex {
         try {
             List<String> lignes = Files.readAllLines(fichier, StandardCharsets.UTF_8);
             if (lignes.isEmpty() || !lignes.get(0).equals(EN_TETE)) {
-                System.err.println("Cache illisible, nouveau téléchargement : format de cache inattendu");
+                System.err.println("Cache illisible, nouveau téléchargement : en-tête inattendu (ancien format ?)");
                 return null;
             }
             ArrayList<Pokemon> pokemons = new ArrayList<>();
@@ -50,15 +49,7 @@ public class CachePokedex {
         for (String type : champs[4].split("/")) {
             pokemon.ajouterType(type);
         }
-        pokemon.setTaille(Double.parseDouble(champs[5]));
-        pokemon.setPoids(Double.parseDouble(champs[6]));
-        pokemon.setPv(Integer.parseInt(champs[7]));
-        pokemon.setAttaque(Integer.parseInt(champs[8]));
-        pokemon.setDefense(Integer.parseInt(champs[9]));
-        pokemon.setAttaqueSpeciale(Integer.parseInt(champs[10]));
-        pokemon.setDefenseSpeciale(Integer.parseInt(champs[11]));
-        pokemon.setVitesse(Integer.parseInt(champs[12]));
-        pokemon.setAdresseImage(champs[13]);
+        pokemon.setAdresseImage(champs[5]);
         return pokemon;
     }
 
@@ -67,10 +58,7 @@ public class CachePokedex {
         lignes.add(EN_TETE);
         for (Pokemon p : pokemons) {
             lignes.add(p.getId() + ";" + p.getNom() + ";" + p.getNomAnglais() + ";" + p.getGeneration() + ";"
-                    + String.join("/", p.getTypes()) + ";" + p.getTaille() + ";" + p.getPoids() + ";"
-                    + p.getPv() + ";" + p.getAttaque() + ";" + p.getDefense() + ";"
-                    + p.getAttaqueSpeciale() + ";" + p.getDefenseSpeciale() + ";" + p.getVitesse() + ";"
-                    + p.getAdresseImage());
+                    + String.join("/", p.getTypes()) + ";" + p.getAdresseImage());
         }
         Files.createDirectories(fichier.getParent());
         Files.write(fichier, lignes, StandardCharsets.UTF_8);

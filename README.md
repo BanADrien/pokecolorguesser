@@ -8,8 +8,15 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
 
 ## Fonctionnalités
 
-- **Pokédex** : un tableau avec l'image de chaque Pokémon, ses noms français et anglais, sa génération,
-  ses types, sa taille, son poids et ses statistiques. Un clic sur un en-tête trie la colonne.
+- **Pokédex** : un tableau avec le numéro de chaque Pokémon, son image, ses noms français et anglais,
+  sa génération et ses types. Un clic sur un en-tête trie la colonne.
+  - **Recherche** : le tableau ne garde que les Pokémon dont le nom français ou anglais contient le texte tapé,
+    sans tenir compte des accents ni des majuscules (« chu » trouve Pikachu, Raichu, Pichu…).
+    Un nombre cherche le numéro : « 25 » trouve Pikachu. Le tableau change à chaque lettre tapée.
+  - **Filtres** : une liste « Génération » (Toutes, 1 – Kanto … 8 – Galar) et une liste « Type »
+    (Tous, puis les 18 types dans l'ordre alphabétique). La recherche et les deux filtres se combinent.
+  - Le nombre de Pokémon affichés est indiqué à droite (« 12 Pokémon affichés »,
+    « Aucun Pokémon ne correspond »), et « Réinitialiser » vide la recherche et les filtres.
 - **Quiz des couleurs** : il faut retrouver un Pokémon tiré au hasard à partir d'un indice, qui change
   à chaque erreur. Les deux premiers indices découpent son sprite en bandes : chaque bande montre la couleur
   la plus fréquente de sa partie de l'image et la place qu'y prend le Pokémon (par défaut, les contours noirs
@@ -34,6 +41,8 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
   types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
   Un aperçu montre les trois indices et la réponse, et les réglages sont enregistrés automatiquement.
   Le sens des bandes ne se règle plus : il dépend des vies qui restent.
+
+![Onglet Pokédex : génération 1 et type Feu](docs/images/pokedex.png)
 
 ![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette, puis la réponse](docs/images/indices-3-etapes.png)
 
@@ -99,15 +108,17 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── ApiPokemon.java             appels à PokéAPI et lecture du JSON avec Jackson
 │   ├── CachePokedex.java           fichier cache/pokedex.csv
 │   ├── CacheImages.java            images téléchargées une fois, puis gardées dans cache/sprites/
-│   ├── Pokemon.java                un Pokémon
-│   ├── ModeleTableau.java          contenu du tableau
+│   ├── Pokemon.java                un Pokémon (numéro, noms, génération, types, image)
+│   ├── PanneauPokedex.java         onglet Pokédex : recherche, filtres et tableau
+│   ├── FiltrePokedex.java          recherche et filtres du Pokédex, sans interface graphique
+│   ├── ModeleTableau.java          contenu du tableau : tous les Pokémon et ceux qui passent les filtres
 │   ├── Bandes.java, Bande.java     découpage d'une image en colonnes ou en lignes de couleurs, silhouette
 │   ├── PartieQuiz.java             déroulement d'une partie (vies, indice, score), sans interface graphique
 │   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── Parametres.java             réglages du quiz
 │   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
 │       RenduSuggestion.java, IconeVies.java                     interface du quiz
-├── src/test/java/fr/sdv/pokedex/   16 tests JUnit (sans réseau ni fenêtre)
+├── src/test/java/fr/sdv/pokedex/   28 tests JUnit (sans réseau ni fenêtre)
 └── docs/images/                    captures d'écran de ce README
 ```
 
@@ -118,7 +129,10 @@ et ignorés par Git (voir `.gitignore`) :
 
 - `cache/pokedex.csv` : la liste des Pokémon, téléchargée une seule fois, comme le demande PokéAPI.
   Le premier téléchargement se fait Pokémon par Pokémon et prend quelques minutes (barre de progression en bas).
-  Supprimer ce fichier force un nouveau téléchargement.
+  Supprimer ce fichier force un nouveau téléchargement. Une ligne par Pokémon, champs séparés par `;` :
+  `id;nom;nom_anglais;generation;types;image` (par exemple `6;Dracaufeu;Charizard;1;Feu/Vol;https://…/6.png`).
+  Un fichier d'une ancienne version (avec la taille, le poids et les statistiques) est reconnu à son en-tête :
+  la liste est alors téléchargée à nouveau, une seule fois, et les images déjà dans `cache/sprites/` sont gardées.
 - `cache/sprites/` : les images des Pokémon, téléchargées une par une après la liste.
 - `parametres.properties` : les réglages du quiz. Un fichier créé par une ancienne version reste lisible :
   il garde son nombre de sections (par exemple 8), et l'ancienne clé `sens` est ignorée.
