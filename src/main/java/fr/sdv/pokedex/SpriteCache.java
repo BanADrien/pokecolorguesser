@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import javax.imageio.ImageIO;
 import javax.swing.Icon;

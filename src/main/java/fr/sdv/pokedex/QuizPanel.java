@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;

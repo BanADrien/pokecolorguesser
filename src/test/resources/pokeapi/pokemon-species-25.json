@@ -1,0 +1,37 @@
+{
+  "id": 25,
+  "name": "pikachu",
+  "names": [
+    {"language": {"name": "ja-hrkt"}, "name": "ピカチュウ"},
+    {"language": {"name": "ja-roma"}, "name": "Pikachu"},
+    {"language": {"name": "ko"}, "name": "피카츄"},
+    {"language": {"name": "zh-hant"}, "name": "皮卡丘"},
+    {"language": {"name": "fr"}, "name": "Pikachu"},
+    {"language": {"name": "de"}, "name": "Pikachu"},
+    {"language": {"name": "es"}, "name": "Pikachu"},
+    {"language": {"name": "it"}, "name": "Pikachu"},
+    {"language": {"name": "en"}, "name": "Pikachu"},
+    {"language": {"name": "ja"}, "name": "ピカチュウ"},
+    {"language": {"name": "zh-hans"}, "name": "皮卡丘"},
+    {"language": {"name": "es-419"}, "name": "Pikachu"}
+  ],
+  "varieties": [
+    {"is_default": true, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/25/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10080/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10081/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10082/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10083/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10084/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10085/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10094/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10095/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10096/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10097/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10098/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10099/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10148/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10158/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10160/"}},
+    {"is_default": false, "pokemon": {"url": "https://pokeapi.co/api/v2/pokemon/10199/"}}
+  ]
+}

@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
