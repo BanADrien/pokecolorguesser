@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import java.io.IOException;
 import java.io.Reader;

@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +17,8 @@ public class PokemonRepository {
     public static final int FIRST_GENERATION = 1;
     public static final int LAST_GENERATION = 8; // toutes les générations avant la 9
 
-    private static final String HEADER =
+    /** Première ligne du fichier cache (sans private : les tests s'en servent pour écrire un cache valide). */
+    static final String HEADER =
             "id;nom;nom_anglais;generation;types;taille_m;poids_kg;pv;attaque;defense;atq_spe;def_spe;vitesse;image";
 
     private final Path cacheFile;

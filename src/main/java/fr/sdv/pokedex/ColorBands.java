@@ -1,4 +1,4 @@
-package pokedex;
+package fr.sdv.pokedex;
 
 import java.awt.Color;
 import java.awt.Rectangle;

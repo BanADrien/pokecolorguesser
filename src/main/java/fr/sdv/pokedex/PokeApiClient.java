@@ -1,4 +1,7 @@
-package pokedex;
+package fr.sdv.pokedex;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -7,13 +10,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -29,6 +30,9 @@ public class PokeApiClient {
     private static final String BASE_URL = "https://pokeapi.co/api/v2/";
     private static final int PARALLEL_REQUESTS = 16;
     private static final int MAX_ATTEMPTS = 3;
+
+    /** Lit le JSON (bibliothèque Jackson). Un seul ObjectMapper suffit : il peut servir à plusieurs threads. */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static final Map<String, String> TYPES_FR = Map.ofEntries(
             Map.entry("normal", "Normal"),
@@ -64,9 +68,8 @@ public class PokeApiClient {
         // 1. Chaque génération donne la liste des espèces apparues dans cette génération
         Map<Integer, Integer> generationBySpeciesId = new TreeMap<>();
         for (int gen = firstGen; gen <= lastGen; gen++) {
-            Map<String, Object> generation = getJson(BASE_URL + "generation/" + gen + "/");
-            for (Object species : Json.asArray(generation.get("pokemon_species"))) {
-                generationBySpeciesId.put(idFromUrl((String) Json.get(species, "url")), gen);
+            for (int speciesId : speciesIds(getJson(BASE_URL + "generation/" + gen + "/"))) {
+                generationBySpeciesId.put(speciesId, gen);
             }
         }
 
@@ -100,55 +103,78 @@ public class PokeApiClient {
 
     private Pokemon fetchPokemon(int speciesId, int generation) throws IOException, InterruptedException {
         // L'espèce contient les noms traduits, le Pokémon contient les types et les statistiques
-        Map<String, Object> species = getJson(BASE_URL + "pokemon-species/" + speciesId + "/");
-        Map<String, Object> pokemon = getJson(defaultVarietyUrl(species, speciesId));
+        JsonNode species = getJson(BASE_URL + "pokemon-species/" + speciesId + "/");
+        JsonNode pokemon = getJson(defaultVarietyUrl(species));
+        return toPokemon(species, pokemon, generation);
+    }
 
+    // Les méthodes suivantes lisent les réponses JSON sans faire d'appel réseau : on peut les tester
+    // avec des fichiers d'exemple. path("clé") ne renvoie jamais null : si la clé manque,
+    // on obtient un nœud « absent », qui donne 0 avec asInt() et "" avec asText().
+
+    /** Les numéros des espèces apparues dans une génération (réponse de /generation/{n}/). */
+    static List<Integer> speciesIds(JsonNode generation) {
+        List<Integer> ids = new ArrayList<>();
+        for (JsonNode species : generation.path("pokemon_species")) {
+            ids.add(idFromUrl(species.path("url").asText()));
+        }
+        return ids;
+    }
+
+    /**
+     * Assemble un Pokémon à partir de son espèce (réponse de /pokemon-species/{id}/ : numéro et noms traduits)
+     * et de sa forme par défaut (réponse de /pokemon/{id}/ : types, taille, poids, statistiques et image).
+     */
+    static Pokemon toPokemon(JsonNode species, JsonNode pokemon, int generation) {
         List<String> types = new ArrayList<>();
-        for (Object type : Json.asArray(pokemon.get("types"))) {
-            String name = (String) Json.get(type, "type", "name");
+        for (JsonNode type : pokemon.path("types")) {
+            String name = type.path("type").path("name").asText();
             types.add(TYPES_FR.getOrDefault(name, name));
         }
 
         Map<String, Integer> stats = new HashMap<>();
-        for (Object stat : Json.asArray(pokemon.get("stats"))) {
-            String name = (String) Json.get(stat, "stat", "name");
-            stats.put(name, ((Number) Json.get(stat, "base_stat")).intValue());
+        for (JsonNode stat : pokemon.path("stats")) {
+            stats.put(stat.path("stat").path("name").asText(), stat.path("base_stat").asInt());
         }
 
+        // "front_default" vaut null quand le Pokémon n'a pas d'image
+        JsonNode sprite = pokemon.path("sprites").path("front_default");
+
         return new Pokemon(
-                speciesId,
+                species.path("id").asInt(),
                 localizedName(species, "fr"),
                 localizedName(species, "en"),
                 generation,
                 List.copyOf(types),
-                ((Number) pokemon.get("height")).intValue() / 10.0, // l'API donne des décimètres
-                ((Number) pokemon.get("weight")).intValue() / 10.0, // et des hectogrammes
+                pokemon.path("height").asInt() / 10.0, // l'API donne des décimètres
+                pokemon.path("weight").asInt() / 10.0, // et des hectogrammes
                 stats.getOrDefault("hp", 0),
                 stats.getOrDefault("attack", 0),
                 stats.getOrDefault("defense", 0),
                 stats.getOrDefault("special-attack", 0),
                 stats.getOrDefault("special-defense", 0),
                 stats.getOrDefault("speed", 0),
-                Objects.requireNonNullElse((String) Json.get(pokemon, "sprites", "front_default"), ""));
+                sprite.isTextual() ? sprite.asText() : "");
     }
 
-    private static String localizedName(Map<String, Object> species, String language) {
-        for (Object name : Json.asArray(species.get("names"))) {
-            if (language.equals(Json.get(name, "language", "name"))) {
-                return (String) Json.get(name, "name");
+    /** Le nom dans la langue demandée ("fr", "en"…), sinon le nom technique de l'espèce ("pikachu"). */
+    private static String localizedName(JsonNode species, String language) {
+        for (JsonNode name : species.path("names")) {
+            if (language.equals(name.path("language").path("name").asText())) {
+                return name.path("name").asText();
             }
         }
-        return (String) species.get("name");
+        return species.path("name").asText();
     }
 
     /** Une espèce peut avoir plusieurs formes (ex. méga-évolutions) : on garde la forme par défaut. */
-    private static String defaultVarietyUrl(Map<String, Object> species, int speciesId) {
-        for (Object variety : Json.asArray(species.get("varieties"))) {
-            if (Boolean.TRUE.equals(Json.get(variety, "is_default"))) {
-                return (String) Json.get(variety, "pokemon", "url");
+    static String defaultVarietyUrl(JsonNode species) {
+        for (JsonNode variety : species.path("varieties")) {
+            if (variety.path("is_default").asBoolean()) {
+                return variety.path("pokemon").path("url").asText();
             }
         }
-        return BASE_URL + "pokemon/" + speciesId + "/";
+        return BASE_URL + "pokemon/" + species.path("id").asInt() + "/";
     }
 
     /** "https://pokeapi.co/api/v2/pokemon-species/25/" -> 25 */
@@ -157,8 +183,8 @@ public class PokeApiClient {
         return Integer.parseInt(parts[parts.length - 1]);
     }
 
-    private Map<String, Object> getJson(String url) throws IOException, InterruptedException {
-        return Json.asObject(Json.parse(new String(download(url), StandardCharsets.UTF_8)));
+    private JsonNode getJson(String url) throws IOException, InterruptedException {
+        return MAPPER.readTree(download(url));
     }
 
     /** Télécharge une URL (JSON ou image), en réessayant en cas d'erreur réseau ou de serveur surchargé. */
