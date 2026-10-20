@@ -1,3 +1,7 @@
+### Pokédex : données téléchargées depuis PokéAPI et réglages locaux du quiz ###
+cache/
+parametres.properties
+
 ### IntelliJ IDEA ###
 out/
 !**/src/main/**/out/
