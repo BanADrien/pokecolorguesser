@@ -10,9 +10,16 @@ et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs
 
 - **Pokédex** : un tableau avec l'image de chaque Pokémon, ses noms français et anglais, sa génération,
   ses types, sa taille, son poids et ses statistiques. Un clic sur un en-tête trie la colonne.
-- **Quiz des couleurs** : le sprite d'un Pokémon tiré au hasard est découpé en bandes horizontales.
-  Chaque bande montre la couleur la plus fréquente à cette hauteur et la largeur du Pokémon à cet endroit
+- **Quiz des couleurs** : le sprite d'un Pokémon tiré au hasard est découpé en bandes horizontales
+  ou verticales. Chaque bande montre la couleur la plus fréquente de sa partie de l'image et la place
+  qu'y prend le Pokémon : sa largeur pour une bande horizontale, sa hauteur pour une bande verticale
   (par défaut, les contours noirs du dessin ne comptent pas dans la couleur).
+  - **Sens des bandes automatique** (par défaut) : pour chaque Pokémon, le quiz calcule les deux découpages
+    et garde le plus fidèle à sa forme, celui dont les rectangles contiennent le moins de vide
+    (à égalité, l'horizontal). Une bande horizontale va d'un bout à l'autre du Pokémon et bouche les trous
+    entre deux ailes ou deux jambes écartées ; des colonnes verticales les laissent voir. Avec 8 bandes,
+    le vertical est choisi pour 407 des 905 Pokémon. Le sens est choisi au début de chaque question
+    et ne change plus quand l'image se précise.
   - **Réponse avec autocomplétion** : on tape les premières lettres du nom, en français ou en anglais
     (majuscules, accents et ponctuation ne comptent pas). La liste sous le champ ne garde que les Pokémon
     qui commencent ainsi, par exemple « Dracaufeu (Charizard) » pour « chari ». Les Pokémon trouvés
@@ -20,11 +27,17 @@ et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs
     dans l'ordre alphabétique. On choisit avec les flèches ↑ ↓ puis Entrée, ou d'un clic.
   - **3 vies par Pokémon** : une mauvaise réponse coûte une vie (les cœurs au-dessus du champ),
     le Pokémon proposé disparaît de la liste et l'image devient plus précise : le nombre de bandes double
-    (8, puis 16, puis 32). À la troisième erreur, ou avec « Passer », le Pokémon est dévoilé.
+    (8, puis 16, puis 32), toujours dans le même sens. À la troisième erreur, ou avec « Passer »,
+    le Pokémon est dévoilé.
   - Le score compte les Pokémon trouvés. Il s'affiche à la fin de la partie.
-- **Paramètres** : nombre de bandes (1 à 32), nombre de questions (1 à 50), contours noirs ignorés ou non,
-  types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
+- **Paramètres** : nombre de bandes (1 à 32), sens des bandes (automatique, horizontal ou vertical),
+  nombre de questions (1 à 50), contours noirs ignorés ou non, types en indice et générations utilisées
+  par le quiz (la liste des réponses ne propose que ces générations).
   Un aperçu montre le résultat, et les réglages sont enregistrés automatiquement.
+
+| Lugia en 8 bandes verticales (choix automatique) | Le même Pokémon forcé en horizontal : le trou entre les ailes disparaît |
+|---|---|
+| ![Lugia en bandes verticales, à côté de son sprite](docs/images/lugia-vertical.png) | ![Lugia en bandes horizontales, à côté de son sprite](docs/images/lugia-horizontal.png) |
 
 | Après une erreur : 2 vies, 16 bandes | Réponse ratée |
 |---|---|
@@ -88,13 +101,13 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── CacheImages.java            images téléchargées une fois, puis gardées dans cache/sprites/
 │   ├── Pokemon.java                un Pokémon
 │   ├── ModeleTableau.java          contenu du tableau
-│   ├── Bandes.java, Bande.java     découpage d'une image en bandes de couleurs
+│   ├── Bandes.java, Bande.java     découpage d'une image en bandes de couleurs (horizontales ou verticales)
 │   ├── PartieQuiz.java             déroulement d'une partie (vies, score), sans interface graphique
 │   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── Parametres.java             réglages du quiz
 │   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
 │       RenduSuggestion.java, IconeVies.java                     interface du quiz
-├── src/test/java/fr/sdv/pokedex/   11 tests JUnit (sans réseau ni fenêtre)
+├── src/test/java/fr/sdv/pokedex/   16 tests JUnit (sans réseau ni fenêtre)
 └── docs/images/                    captures d'écran de ce README
 ```
 

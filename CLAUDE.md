@@ -53,21 +53,31 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   si l'image est indisponible), icônes du tableau (`HashMap`, utilisée seulement dans le thread de Swing).
 - `Pokemon` (attributs privés, getters/setters), `ModeleTableau` (`AbstractTableModel` du tableau ;
   `getColumnClass` renvoie `Class` sans `<?>`, comme dans le tutoriel Swing d'Oracle).
-- Quiz : `Bandes` et `Bande` (couleur la plus fréquente par bande horizontale, contours presque noirs ignorés en option),
+- Quiz : `Bandes` et `Bande` (bandes horizontales ou verticales selon le paramètre `vertical` du constructeur :
+  couleur la plus fréquente de chaque section, contours presque noirs ignorés en option ; une bande horizontale
+  va du pixel visible le plus à gauche au plus à droite de sa section, une colonne verticale du plus haut au plus bas ;
+  nombre de sections plafonné à la hauteur visible, ou à la largeur visible en vertical).
+  `getVide()` = 1 − pixels visibles / surface des rectangles ; `Bandes.verticalPlusFidele(image, sections, contours)`
+  compare les deux sens (à égalité : horizontal).
   `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon,
   `nombreDeBandes(base)` double les bandes à chaque vie perdue), `Suggestions` (autocomplétion : préfixe du nom
   français ou anglais normalisé par `normaliser`, français d'abord, puis anglais, tri `Collator` français,
   sans les Pokémon déjà proposés à tort), `Parametres` (réglages, fichier `parametres.properties` avec les clés
-  `sections`, `questions`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ; une ancienne clé `mode` est ignorée ;
+  `sections`, `questions`, `sens`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ; une ancienne clé `mode`
+  est ignorée ; `sens` vaut `auto` (défaut), `horizontal` ou `vertical`, une valeur absente ou inconnue donne `auto` ;
+  `bandesVerticales(image)` = le sens choisi, ou en automatique le plus fidèle avec `sections` ;
   `pokemonsDuQuiz(...)` = Pokémon des générations cochées).
-- Interface du quiz : `PanneauQuiz`, `PanneauParametres`, `PanneauBandes` (les deux cases dessinées),
+- Dans `PanneauQuiz`, le sens est choisi une seule fois par question (`verticalQuestion`, avec le nombre de sections
+  de départ) et gardé quand le nombre de bandes double après une erreur.
+- Interface du quiz : `PanneauQuiz`, `PanneauParametres` (le sens des bandes : trois `JRadioButton` dans un
+  `ButtonGroup`), `PanneauBandes` (les deux cases dessinées, légende « Indice · 16 bandes verticales »),
   `RenduSuggestion` (ligne de la liste, nom anglais en gris ; la liste est un `JTable` d'une colonne),
   `IconeVies` (cœurs dessinés en Java2D). Le chargement d'une image pour le quiz ou l'aperçu se fait dans un
   `new Thread() { ... }`, avec un numéro de chargement pour ignorer un résultat devenu inutile.
 
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
-- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest` (11 tests).
+- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest` (16 tests).
 - Écrits simplement, comme en cours : `assertEquals`, `assertTrue`, `assertFalse`.
 - Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes.
 - Les tests sont dans le même paquet que le code.

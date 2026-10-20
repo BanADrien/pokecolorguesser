@@ -2,7 +2,8 @@ package fr.sdv.pokedex;
 
 import java.awt.Color;
 
-// Une bande du quiz : sa place dans l'image (bas et droite exclus) et sa couleur la plus fréquente
+// Une bande du quiz (horizontale ou verticale) : sa place dans l'image (bas et droite exclus),
+// sa couleur la plus fréquente et le nombre de pixels visibles qu'elle recouvre
 public class Bande {
 
     private int haut;
@@ -10,13 +11,15 @@ public class Bande {
     private int gauche;
     private int droite;
     private Color couleur;
+    private int pixelsVisibles;
 
-    public Bande(int haut, int bas, int gauche, int droite, Color couleur) {
+    public Bande(int haut, int bas, int gauche, int droite, Color couleur, int pixelsVisibles) {
         this.haut = haut;
         this.bas = bas;
         this.gauche = gauche;
         this.droite = droite;
         this.couleur = couleur;
+        this.pixelsVisibles = pixelsVisibles;
     }
 
     public int getHaut() {
@@ -37,5 +40,14 @@ public class Bande {
 
     public Color getCouleur() {
         return couleur;
+    }
+
+    public int getPixelsVisibles() {
+        return pixelsVisibles;
+    }
+
+    // le nombre de pixels du rectangle, visibles ou non
+    public int getSurface() {
+        return (droite - gauche) * (bas - haut);
     }
 }

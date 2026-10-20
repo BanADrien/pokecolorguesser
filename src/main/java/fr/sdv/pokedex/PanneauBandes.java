@@ -13,7 +13,8 @@ import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
-// Deux cases côte à côte : à gauche les bandes de couleurs (l'indice), à droite un « ? » ou le vrai Pokémon.
+// Deux cases côte à côte : à gauche les bandes de couleurs (l'indice, en bandes horizontales ou verticales),
+// à droite un « ? » ou le vrai Pokémon.
 // Les deux cases utilisent la même échelle, pour que les pixels restent nets et bien alignés.
 public class PanneauBandes extends JPanel {
 
@@ -118,15 +119,19 @@ public class PanneauBandes extends JPanel {
         g.drawString("Réponse", droite + (largeurCase - mesures.stringWidth("Réponse")) / 2, yLegende);
     }
 
-    // "Indice · 16 bandes" : dans le quiz, le nombre de bandes change quand on perd une vie
+    // "Indice · 16 bandes verticales" : dans le quiz, le nombre de bandes change quand on perd une vie
     private String legendeIndice() {
         int sections = bandes.getNombreSections();
+        String sens = "horizontale";
+        if (bandes.isVertical()) {
+            sens = "verticale";
+        }
         if (sections == 0) {
             return "Indice";
         } else if (sections == 1) {
-            return "Indice · 1 bande";
+            return "Indice · 1 bande " + sens;
         }
-        return "Indice · " + sections + " bandes";
+        return "Indice · " + sections + " bandes " + sens + "s";
     }
 
     private void dessinerCase(Graphics2D g, int x, int y, int largeur, int hauteur) {
@@ -156,7 +161,7 @@ public class PanneauBandes extends JPanel {
             int hauteur = (bande.getBas() - bande.getHaut()) * echelle;
             g.setColor(bande.getCouleur());
             g.fillRect(x, y, largeur, hauteur);
-            // sur une bande très fine, le bord cacherait la couleur
+            // sur une bande très fine (ou une colonne très étroite), le bord cacherait la couleur
             if (largeur >= 4 && hauteur >= 4) {
                 g.setColor(bande.getCouleur().darker());
                 g.drawRect(x, y, largeur - 1, hauteur - 1);

@@ -70,6 +70,7 @@ public class PanneauQuiz extends JPanel {
     private Suggestions suggestions = new Suggestions(new ArrayList<>());
     private BufferedImage imageQuestion;    // gardée pour recalculer les bandes après une erreur
     private Bandes bandesQuestion;
+    private boolean verticalQuestion;       // le sens des bandes, gardé pour toute la question
     private boolean enChargement;           // une question est en train de charger
     private boolean partieTerminee;         // l'écran de fin est affiché
     private int numeroChargement;           // pour ignorer un chargement devenu inutile
@@ -261,7 +262,7 @@ public class PanneauQuiz extends JPanel {
             return;
         }
         dessin.setMessage("Retrouvez le Pokémon caché derrière ses bandes de couleurs !\n"
-                + "Chaque bande donne sa couleur la plus fréquente et sa largeur à cette hauteur.\n"
+                + "Chaque bande donne sa couleur la plus fréquente et la taille du Pokémon à cet endroit.\n"
                 + "Cliquez sur « Commencer » pour lancer une partie.");
         boutonNouvellePartie.setEnabled(true);
         boutonSuivant.setEnabled(true);
@@ -339,6 +340,9 @@ public class PanneauQuiz extends JPanel {
             return;
         }
         imageQuestion = image;
+        // le sens est choisi une seule fois, avec le nombre de bandes de départ :
+        // il ne change pas quand l'image se précise après une erreur
+        verticalQuestion = parametresPartie.bandesVerticales(imageQuestion);
         bandesQuestion = calculerBandes();
         dessin.afficher(bandesQuestion, imageQuestion, false);
         afficherIndice(pokemon);
@@ -356,7 +360,7 @@ public class PanneauQuiz extends JPanel {
 
     private Bandes calculerBandes() {
         int sections = partie.nombreDeBandes(parametresPartie.getSections());
-        return new Bandes(imageQuestion, sections, parametresPartie.isIgnorerContoursNoirs());
+        return new Bandes(imageQuestion, sections, parametresPartie.isIgnorerContoursNoirs(), verticalQuestion);
     }
 
     private void afficherIndice(Pokemon pokemon) {
@@ -493,7 +497,7 @@ public class PanneauQuiz extends JPanel {
         } else {
             message = message + "Plus que " + partie.getVies() + " vies";
         }
-        // si l'image n'a pas assez de lignes pour plus de bandes, elle ne change pas
+        // si l'image n'a pas assez de lignes (ou de colonnes) pour plus de bandes, elle ne change pas
         if (bandesQuestion.getNombreSections() > sectionsAvant) {
             message = message + " : l'image est plus précise.";
         } else {

@@ -2,10 +2,12 @@ package fr.sdv.pokedex;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
@@ -35,6 +37,9 @@ public class PanneauParametres extends JPanel {
     private static final int NUMERO_PIKACHU = 25;
     // la région de chaque génération (case 0 : génération 1)
     private static final String[] REGIONS = {"Kanto", "Johto", "Hoenn", "Sinnoh", "Unys", "Kalos", "Alola", "Galar"};
+    // les choix du sens des bandes, et leur texte dans l'interface
+    private static final String[] SENS = {Parametres.SENS_AUTO, Parametres.SENS_HORIZONTAL, Parametres.SENS_VERTICAL};
+    private static final String[] NOMS_SENS = {"Automatique (le plus fidèle)", "Horizontal", "Vertical"};
 
     private Parametres parametres;
     private Path fichier;
@@ -95,7 +100,7 @@ public class PanneauParametres extends JPanel {
 
     private JPanel creerCadreQuiz() {
         choixSections = creerChoixNombre(parametres.getSections(), Parametres.SECTIONS_MIN, Parametres.SECTIONS_MAX);
-        choixSections.setToolTipText("Nombre de bandes de couleur horizontales");
+        choixSections.setToolTipText("Nombre de bandes de couleur au début de chaque question");
         choixSections.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
@@ -150,11 +155,38 @@ public class PanneauParametres extends JPanel {
         c.gridy = 2;
         c.gridwidth = 2;
         c.insets = new Insets(8, 0, 0, 0);
-        cadre.add(caseContours, c);
+        cadre.add(new JLabel("Sens des bandes :"), c);
         c.gridy = 3;
+        c.insets = new Insets(0, 8, 0, 0);
+        cadre.add(creerChoixSens(), c);
+        c.gridy = 4;
+        c.insets = new Insets(8, 0, 0, 0);
+        cadre.add(caseContours, c);
+        c.gridy = 5;
         c.insets = new Insets(2, 0, 0, 0);
         cadre.add(caseIndiceTypes, c);
         return cadre;
+    }
+
+    // un bouton radio par sens : un seul peut être choisi à la fois
+    private JPanel creerChoixSens() {
+        JPanel choix = new JPanel(new GridLayout(SENS.length, 1));
+        ButtonGroup groupe = new ButtonGroup();
+        for (int i = 0; i < SENS.length; i++) {
+            String sens = SENS[i];
+            JRadioButton bouton = new JRadioButton(NOMS_SENS[i], sens.equals(parametres.getSens()));
+            bouton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    parametres.setSens(sens);
+                    enregistrer();
+                    mettreAJourApercu();
+                }
+            });
+            groupe.add(bouton);
+            choix.add(bouton);
+        }
+        return choix;
     }
 
     private JPanel creerCadreGenerations() {
@@ -310,7 +342,9 @@ public class PanneauParametres extends JPanel {
     // le découpage est rapide (image de 96 × 96) : on le refait à chaque changement de réglage
     private void mettreAJourApercu() {
         if (imageExemple != null) {
-            Bandes bandes = new Bandes(imageExemple, parametres.getSections(), parametres.isIgnorerContoursNoirs());
+            boolean vertical = parametres.bandesVerticales(imageExemple);
+            Bandes bandes = new Bandes(imageExemple, parametres.getSections(), parametres.isIgnorerContoursNoirs(),
+                    vertical);
             apercu.afficher(bandes, imageExemple, true);
         }
     }
