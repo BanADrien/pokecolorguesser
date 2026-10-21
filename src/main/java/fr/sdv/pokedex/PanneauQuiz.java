@@ -156,10 +156,11 @@ public class PanneauQuiz extends JPanel {
         labelEtat.setForeground(GRIS);
         labelVies.setHorizontalTextPosition(JLabel.LEADING); // le texte « Vies : », puis les cœurs
         labelVies.setIconTextGap(8);
+        boutonPasser.setToolTipText("Passer à l'indice suivant (coûte une vie)");
         boutonPasser.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                passerQuestion();
+                passerIndice();
             }
         });
 
@@ -261,7 +262,9 @@ public class PanneauQuiz extends JPanel {
         }
         dessin.setMessage("Retrouvez le Pokémon caché derrière ses bandes de couleurs !\n"
                 + "Chaque bande donne sa couleur la plus fréquente et la taille du Pokémon à cet endroit.\n"
-                + "3 vies par Pokémon : d'abord des colonnes, puis des lignes, puis sa silhouette.\n"
+                + "3 vies par Pokémon : d'abord des colonnes, puis des lignes, puis sa silhouette pixelisée.\n"
+                + "Une erreur, ou « Passer », coûte une vie et montre l'indice suivant.\n"
+                + "Trouvé du premier coup : 3 points, au 2e essai : 2 points, au 3e essai : 1 point.\n"
                 + "Cliquez sur « Commencer » pour lancer une partie.");
         boutonNouvellePartie.setEnabled(true);
         boutonSuivant.setEnabled(true);
@@ -346,20 +349,21 @@ public class PanneauQuiz extends JPanel {
     }
 
     private void questionSansImage(Pokemon pokemon) {
-        partie.passer();
+        partie.abandonner();
         dessin.setMessage("L'image de " + decrire(pokemon) + " est indisponible.\nLa question est passée.");
         labelResultat.setForeground(ROUGE);
         labelResultat.setText("Question passée faute d'image (vérifiez la connexion).");
         apresReponse();
     }
 
-    // L'indice qui correspond aux vies restantes (colonnes, lignes ou silhouette), et la réponse cachée.
+    // L'indice qui correspond aux vies restantes (colonnes, lignes ou silhouette pixelisée), et la réponse cachée.
     // L'image est déjà chargée : le calcul est immédiat.
     private void dessinerIndice() {
         String indice = partie.getIndice();
         dessin.nouvellesCases(imageQuestion);
         if (indice.equals(PartieQuiz.INDICE_SILHOUETTE)) {
-            dessin.ajouterImage(Bandes.silhouette(imageQuestion), "Indice · silhouette");
+            SilhouettePixelisee silhouette = new SilhouettePixelisee(imageQuestion, parametresPartie.getSections());
+            dessin.ajouterImage(silhouette.creerImage(), "Indice · silhouette pixelisée");
         } else {
             boolean vertical = indice.equals(PartieQuiz.INDICE_COLONNES);
             Bandes bandes = new Bandes(imageQuestion, parametresPartie.getSections(),
@@ -478,32 +482,39 @@ public class PanneauQuiz extends JPanel {
         } else if (partie.isQuestionFinie()) {
             afficherRate("Raté… ");
         } else {
-            afficherErreur(choisi);
+            afficherIndiceSuivant("Ce n'est pas " + choisi.getNom() + "… ");
         }
     }
 
-    private void passerQuestion() {
-        if (peutRepondre()) {
-            partie.passer();
-            afficherRate("Passé… ");
+    // « Passer » : l'indice suivant coûte une vie ; à la dernière vie, la question est perdue
+    private void passerIndice() {
+        if (!peutRepondre()) {
+            return;
+        }
+        partie.passer();
+        if (partie.isQuestionFinie()) {
+            afficherRate("Raté… ");
+        } else {
+            afficherIndiceSuivant("Indice suivant… ");
         }
     }
 
-    // une vie perdue, mais il en reste : l'indice change (des lignes, puis la silhouette) et on peut réessayer
-    private void afficherErreur(Pokemon mauvais) {
+    // une vie perdue, mais il en reste : l'indice change (des lignes, puis la silhouette pixelisée)
+    // et on peut réessayer
+    private void afficherIndiceSuivant(String debut) {
         dessinerIndice();
         mettreAJourVies();
 
-        String message = "Ce n'est pas " + mauvais.getNom() + "… ";
+        String message = debut;
         if (partie.getIndice().equals(PartieQuiz.INDICE_LIGNES)) {
             message = message + "Plus que " + partie.getVies() + " vies : voici l'image en lignes.";
         } else {
-            message = message + "Plus qu'une vie : voici la silhouette.";
+            message = message + "Plus qu'une vie : voici la silhouette pixelisée.";
         }
         labelResultat.setForeground(ORANGE);
         labelResultat.setText(message);
 
-        // le Pokémon proposé à tort disparaît aussi des suggestions
+        // le champ est vidé ; un Pokémon proposé à tort disparaît aussi des suggestions
         viderChamp();
         champNom.requestFocusInWindow();
     }
@@ -511,19 +522,29 @@ public class PanneauQuiz extends JPanel {
     private void afficherBravo() {
         String message = "Bravo ! C'est " + decrire(partie.getPokemon());
         if (partie.getEssai() == 1) {
-            message = message + ", du premier coup !";
+            message = message + ", du premier coup";
         } else {
-            message = message + ", trouvé au " + partie.getEssai() + "e essai.";
+            message = message + ", trouvé au " + partie.getEssai() + "e essai";
         }
+        message = message + " : +" + decrirePoints(partie.getPointsQuestion());
         labelResultat.setForeground(VERT);
         labelResultat.setText(message);
         terminerQuestion();
     }
 
+    // question perdue : aucun point
     private void afficherRate(String debut) {
         labelResultat.setForeground(ROUGE);
-        labelResultat.setText(debut + "C'était " + decrire(partie.getPokemon()));
+        labelResultat.setText(debut + "C'était " + decrire(partie.getPokemon()) + " : " + decrirePoints(0));
         terminerQuestion();
+    }
+
+    // "0 point", "1 point", "3 points"
+    private String decrirePoints(int points) {
+        if (points > 1) {
+            return points + " points";
+        }
+        return points + " point";
     }
 
     private void terminerQuestion() {
@@ -551,16 +572,17 @@ public class PanneauQuiz extends JPanel {
             texte = vies + " vies";
         }
         labelVies.setToolTipText(texte + " sur " + PartieQuiz.VIES
-                + " pour ce Pokémon. À chaque erreur, l'indice change : des lignes, puis la silhouette.");
+                + " pour ce Pokémon. Une erreur ou « Passer » coûte une vie et change l'indice : des lignes,"
+                + " puis la silhouette pixelisée.");
     }
 
     private void afficherFin() {
         partieTerminee = true;
-        int score = partie.getScore();
-        int total = partie.getNombreQuestions();
-        labelProgression.setText("Partie terminée · Score : " + score + " / " + total);
-        dessin.setMessage("Partie terminée !\nScore final : " + score + " / " + total + "\n"
-                + commentaire(score, total));
+        int points = partie.getPoints();
+        int pointsMax = partie.getPointsMax();
+        labelProgression.setText("Partie terminée · Score : " + points + " / " + pointsMax);
+        dessin.setMessage("Partie terminée !\nScore final : " + points + " / " + pointsMax + "\n"
+                + commentaire(points, pointsMax));
         labelIndice.setText(" ");
         labelResultat.setText(" ");
         viderChamp();
@@ -572,7 +594,7 @@ public class PanneauQuiz extends JPanel {
 
     private void afficherProgression() {
         labelProgression.setText("Question " + partie.getNumeroQuestion() + " / " + partie.getNombreQuestions()
-                + " · Score : " + partie.getScore());
+                + " · Score : " + partie.getPoints() + " / " + partie.getPointsMax());
     }
 
     // "Dracaufeu (Charizard, n°6)", ou "Pikachu (n°25)" quand les deux noms sont pareils
@@ -583,9 +605,10 @@ public class PanneauQuiz extends JPanel {
         return pokemon.getNom() + " (" + pokemon.getNomAnglais() + ", n°" + pokemon.getId() + ")";
     }
 
-    private String commentaire(int score, int total) {
-        double proportion = (double) score / total;
-        if (score == total) {
+    // selon la part des points gagnés
+    private String commentaire(int points, int pointsMax) {
+        double proportion = (double) points / pointsMax;
+        if (points == pointsMax) {
             return "Parfait, un vrai maître Pokémon !";
         } else if (proportion >= 0.7) {
             return "Très bien joué !";

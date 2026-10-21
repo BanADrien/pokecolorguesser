@@ -9,7 +9,6 @@ import java.util.HashMap;
 // L'image d'un Pokémon découpée en colonnes verticales (de gauche à droite) ou en lignes horizontales
 // (de haut en bas). Chaque bande garde la couleur la plus fréquente de sa section et la place qu'y prend
 // le Pokémon : sa hauteur pour une colonne, sa largeur pour une ligne.
-// La classe donne aussi la silhouette noire du Pokémon, le dernier indice du quiz.
 public class Bandes {
 
     // en dessous de cette opacité (de 0 à 255), un pixel compte comme transparent
@@ -62,20 +61,6 @@ public class Bandes {
         return liste;
     }
 
-    // Une image de la même taille : les pixels visibles deviennent noirs, les autres restent transparents
-    public static BufferedImage silhouette(BufferedImage image) {
-        BufferedImage silhouette = new BufferedImage(image.getWidth(), image.getHeight(),
-                BufferedImage.TYPE_INT_ARGB);
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                if (estVisible(new Color(image.getRGB(x, y), true))) {
-                    silhouette.setRGB(x, y, Color.BLACK.getRGB());
-                }
-            }
-        }
-        return silhouette;
-    }
-
     // le plus petit rectangle qui contient tous les pixels visibles du Pokémon
     public static Rectangle zoneVisible(BufferedImage image) {
         int gauche = image.getWidth();
@@ -98,7 +83,8 @@ public class Bandes {
         return new Rectangle(gauche, haut, droite - gauche + 1, bas - haut + 1);
     }
 
-    private static boolean estVisible(Color pixel) {
+    // un pixel assez opaque fait partie du Pokémon (sert aussi pour la silhouette pixelisée)
+    public static boolean estVisible(Color pixel) {
         return pixel.getAlpha() >= OPACITE_MIN;
     }
 

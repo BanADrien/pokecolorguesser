@@ -14,7 +14,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
-// Des cases côte à côte, chacune avec sa légende : des bandes de couleurs, la silhouette, le vrai Pokémon
+// Des cases côte à côte, chacune avec sa légende : des bandes de couleurs, la silhouette pixelisée, le vrai Pokémon
 // ou un « ? ». Le quiz montre l'indice et la réponse, les paramètres les trois indices et la réponse.
 // Toutes les cases utilisent la même échelle, pour que les pixels restent nets et bien alignés.
 public class PanneauBandes extends JPanel {
@@ -58,7 +58,7 @@ public class PanneauBandes extends JPanel {
         repaint();
     }
 
-    // une case avec une image de la taille du sprite (le sprite ou sa silhouette) ; null : un « ? »
+    // une case avec une image de la taille du sprite (le sprite ou sa silhouette pixelisée) ; null : un « ? »
     public void ajouterImage(BufferedImage dessin, String legende) {
         bandesDesCases.add(null);
         imagesDesCases.add(dessin);
