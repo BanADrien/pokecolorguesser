@@ -66,20 +66,26 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   comme dans le tutoriel Swing d'Oracle).
 - Quiz : l'indice dépend des vies restantes. `PartieQuiz.getIndice()` vaut `INDICE_COLONNES` à 3 vies,
   `INDICE_LIGNES` à 2 vies, `INDICE_SILHOUETTE` (silhouette pixelisée) à 1 vie (et à 0 : elle reste à côté du
-  Pokémon dévoilé). Colonnes, lignes et silhouette utilisent le même réglage `sections` (12 par défaut).
+  Pokémon dévoilé). Colonnes et lignes utilisent le réglage `sections` (12 par défaut), la silhouette le double
+  (24 × 24 cases au plus). `PartieQuiz.getIndicesPrecedents()` : les indices déjà vus, dans l'ordre (aucun à 3 vies,
+  colonnes à 2 vies, colonnes puis lignes à 1 et 0 vie), montrés en miniature au-dessus de l'indice en grand.
 - `Bandes` et `Bande` (colonnes verticales ou lignes horizontales selon le paramètre `vertical` du constructeur :
   couleur la plus fréquente de chaque section, contours presque noirs ignorés en option ; une colonne va du pixel
   visible le plus haut au plus bas de sa section, une ligne du plus à gauche au plus à droite ; nombre de sections
   plafonné à la largeur visible pour les colonnes, à la hauteur visible pour les lignes).
   `Bandes.zoneVisible(image)` : rectangle des pixels visibles ; `Bandes.estVisible(pixel)` : opacité >= 128.
-- `SilhouettePixelisee(image, sections)` : la zone visible découpée en cases carrées de côté
-  `ceil(plus grand côté / sections)` (donc au plus `sections` cases sur le plus grand côté) ; la grille couvre
-  toute la zone, centrée en largeur et posée en bas (elle dépasse de moins d'une case, les cases du bord sont
-  coupées par `getCase`) ; une case est noire si ses pixels visibles >= `REMPLISSAGE_MIN` (0,5) × côté²
-  (seuil choisi en regardant de vrais sprites : la forme reste, oreilles, doigts et queues fines disparaissent).
-  Getters `getCote`, `getNombreColonnes`, `getNombreLignes`, `isNoire(ligne, colonne)`, `getCase` ; `creerImage()`
-  donne une image de la taille du sprite (cases noires, reste transparent). L'option des contours ne la change pas.
-- `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon, `getIndice()`).
+- `SilhouettePixelisee(image, sections)` : deux fois plus fine que les bandes. `getTailleGrille()` =
+  `min(2 × sections, plus grand côté visible)` (24 pour 12 sections) ; la zone visible est découpée en cases carrées
+  de côté `ceil(plus grand côté / tailleGrille)` (donc au plus `tailleGrille` cases sur le plus grand côté, moins
+  quand le côté ne tombe pas juste : Pichu fait 13 × 19 cases de 2 px) ; la grille couvre toute la zone, centrée
+  en largeur et posée en bas (elle dépasse de moins d'une case, les cases du bord sont coupées par `getCase`) ;
+  une case est noire si ses pixels visibles >= `REMPLISSAGE_MIN` (0,4) × côté² (seuil choisi en comparant 0,3 à 0,7
+  sur de vrais sprites en 24 × 24 : à 0,5 les queues et les bras fins se coupent en morceaux, à 0,3 la forme
+  grossit). Getters `getTailleGrille`, `getCote`, `getNombreColonnes`, `getNombreLignes`, `isNoire(ligne, colonne)`,
+  `getCase` ; `creerImage()` donne une image de la taille du sprite (cases noires, reste transparent).
+  L'option des contours ne la change pas.
+- `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon, `getIndice()`,
+  `getIndicesPrecedents()`).
   Points : un Pokémon trouvé rapporte les vies qui restent (3, 2 ou 1), 0 si la question est perdue ;
   `getPoints()`, `getPointsMax()` = 3 × nombre de questions de la partie, `getPointsQuestion()`.
   `passer()` (bouton « Passer ») : une vie en moins, comme une erreur, sans mauvais essai ; à la dernière vie,
@@ -88,18 +94,29 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   puis anglais, tri `Collator` français, sans les Pokémon déjà proposés à tort), `Parametres` (réglages, fichier
   `parametres.properties` avec les clés `sections`, `questions`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ;
   les anciennes clés `mode` et `sens` sont ignorées ; `pokemonsDuQuiz(...)` = Pokémon des générations cochées).
-- Dans `PanneauQuiz`, `dessinerIndice()` dessine l'indice de `partie.getIndice()` au début de la question,
-  après chaque erreur et après « Passer » (`afficherIndiceSuivant` : « Ce n'est pas X… » ou « Indice suivant… »,
+- Dans `PanneauQuiz`, `dessinerIndice()` dessine l'indice de `partie.getIndice()` et, en miniature, ceux de
+  `partie.getIndicesPrecedents()` (`creerBandes(indice)`), au début de la question, après chaque erreur et après
+  « Passer » (`afficherIndiceSuivant` : « Ce n'est pas X… » ou « Indice suivant… »,
   puis « Plus que 2 vies : voici l'image en lignes. » ou « Plus qu'une vie : voici la silhouette pixelisée. »).
+  Quand le Pokémon est dévoilé, seule la case « Réponse » change : l'indice et les miniatures restent.
   En haut : « Question 4 / 10 · Score : 8 / 30 » ; réussite : « Bravo ! C'est X, du premier coup : +3 points »
   (« trouvé au 2e essai : +2 points », « au 3e essai : +1 point ») ; échec : « Raté… C'était X : 0 point » ;
   fin : « Score final : 23 / 30 » et un commentaire selon la part des points.
 - Interface du quiz : `PanneauQuiz`, `PanneauParametres` (aperçu : les 3 indices et la réponse, recalculés à chaque
-  changement de réglage), `PanneauBandes` (des cases côte à côte avec leur légende : `nouvellesCases(sprite)`, puis
-  `ajouterBandes` ou `ajouterImage` (silhouette pixelisée, sprite, ou `null` pour un « ? ») ; même échelle entière
+  changement de réglage, légendes « 3 vies : 12 colonnes », « 2 vies : 12 lignes », « 1 vie : silhouette 24 × 24 »,
+  « Réponse » ; pas de miniatures), `PanneauBandes` (des cases côte à côte avec leur légende : `nouvellesCases(sprite)`,
+  puis `ajouterBandes` ou `ajouterImage` (silhouette pixelisée, sprite, ou `null` pour un « ? ») ; même échelle entière
   et même placement dans toutes les cases (centré, posé en bas), donc alignés sur le sprite ; légendes
-  « Indice · 12 colonnes », « Indice · 12 lignes », « Indice · silhouette pixelisée » ; les 4 cases de l'aperçu
-  passent sur 2 rangées si elles y sont plus grandes),
+  « Indice · 12 colonnes », « Indice · 12 lignes », « Indice · silhouette 24 × 24 » (`decrire(Bandes)`,
+  `decrire(SilhouettePixelisee)`) ; les 4 cases de l'aperçu passent sur 2 rangées si elles y sont plus grandes).
+  Miniatures (quiz seulement, `setAvecMiniatures(true)`) : `ajouterMiniature(bandes)` ; côte à côte en haut à gauche
+  de la 1re case, cadre carré du quart du sprite agrandi (`REDUCTION_MINIATURE` = 4 : 96 px à l'échelle 4),
+  fond (230, 230, 230) car il existe des bandes blanches, bord gris, légende grise plus petite (« 12 colonnes ») ;
+  le Pokémon y est recadré sur sa zone visible pour remplir le cadre (`dessinerBandes(..., multiplicateur, diviseur)`).
+  Pas de chevauchement : `placeMiniatures(echelle)` ajoute en haut de toutes les cases (réponse comprise, même
+  hauteur, donc toujours alignées) ce qui manque au-dessus du Pokémon pour les miniatures ; 0 pour un petit Pokémon,
+  environ 80 px pour Lugia ou Éthernatos. Cette place est gardée dès 3 vies (rien ne bouge pendant la question)
+  et `calculerEchelle` baisse l'échelle si elle ne tient plus.
   `RenduSuggestion` (ligne de la liste, nom anglais en gris ; la liste est un `JTable` d'une colonne),
   `IconeVies` (cœurs dessinés en Java2D). Le chargement d'une image pour le quiz ou l'aperçu se fait dans un
   `new Thread() { ... }`, avec un numéro de chargement pour ignorer un résultat devenu inutile.
@@ -107,7 +124,7 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
 - `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest`, `SilhouettePixeliseeTest`,
-  `FiltrePokedexTest`, `CachePokedexTest` (37 tests : 4 + 11 + 3 + 4 + 3 + 10 + 2 ;
+  `FiltrePokedexTest`, `CachePokedexTest` (40 tests : 4 + 13 + 3 + 4 + 4 + 10 + 2 ;
   `CachePokedexTest` écrit dans un dossier `@TempDir` de JUnit).
 - Écrits simplement, comme en cours : `assertEquals`, `assertTrue`, `assertFalse`.
 - Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes et la silhouette pixelisée.

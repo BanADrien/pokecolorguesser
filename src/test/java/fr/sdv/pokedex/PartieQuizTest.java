@@ -62,6 +62,48 @@ class PartieQuizTest {
     }
 
     @Test
+    void lesIndicesDejaVusSontGardesDansLOrdre() {
+        PartieQuiz partie = partieAvecPikachu();
+        // 3 vies : les colonnes sont le premier indice, aucun n'a été vu avant
+        assertTrue(partie.getIndicesPrecedents().isEmpty());
+
+        // 2 vies : les colonnes ont été vues
+        partie.repondre(salameche);
+        assertEquals(1, partie.getIndicesPrecedents().size());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndicesPrecedents().get(0));
+
+        // 1 vie : les colonnes, puis les lignes
+        partie.repondre(carapuce);
+        assertEquals(2, partie.getIndicesPrecedents().size());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndicesPrecedents().get(0));
+        assertEquals(PartieQuiz.INDICE_LIGNES, partie.getIndicesPrecedents().get(1));
+
+        // le Pokémon trouvé : les indices vus restent
+        partie.repondre(pikachu);
+        assertEquals(2, partie.getIndicesPrecedents().size());
+    }
+
+    @Test
+    void passerDonneLesMemesIndicesDejaVus() {
+        PartieQuiz partie = partieAvecPikachu();
+
+        partie.passer();
+        assertEquals(1, partie.getIndicesPrecedents().size());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndicesPrecedents().get(0));
+
+        partie.passer();
+        assertEquals(2, partie.getIndicesPrecedents().size());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndicesPrecedents().get(0));
+        assertEquals(PartieQuiz.INDICE_LIGNES, partie.getIndicesPrecedents().get(1));
+
+        // « Passer » à la dernière vie perd la question : les indices vus restent à côté du Pokémon dévoilé
+        partie.passer();
+        assertTrue(partie.isQuestionFinie());
+        assertEquals(2, partie.getIndicesPrecedents().size());
+        assertEquals(PartieQuiz.INDICE_SILHOUETTE, partie.getIndice());
+    }
+
+    @Test
     void laTroisiemeErreurPerdLaQuestion() {
         PartieQuiz partie = partieAvecPikachu();
         partie.repondre(salameche);
@@ -231,6 +273,7 @@ class PartieQuizTest {
         assertEquals(2, partie.getNumeroQuestion());
         assertEquals(3, partie.getVies());
         assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndice());
+        assertTrue(partie.getIndicesPrecedents().isEmpty());
         assertTrue(partie.getMauvaisesReponses().isEmpty());
         assertTrue(partie.isDerniereQuestion());
         assertFalse(partie.isQuestionFinie());

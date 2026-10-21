@@ -6,16 +6,17 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 
 // Le dernier indice du quiz : la silhouette du Pokémon en gros pixels. Sa zone visible est découpée
-// en cases carrées, et une case est noire si le Pokémon en remplit au moins la moitié.
-// La forme générale reste, les détails fins (oreilles, queue, pattes) disparaissent.
+// en cases carrées, deux fois plus fines que les bandes (24 × 24 environ pour 12 sections),
+// et une case est noire si le Pokémon en remplit au moins 40 %.
 public class SilhouettePixelisee {
 
     // la part de pixels visibles qu'il faut dans une case pour qu'elle soit noire
-    public static final double REMPLISSAGE_MIN = 0.5;
+    public static final double REMPLISSAGE_MIN = 0.4;
 
     private int largeurImage;
     private int hauteurImage;
     private Rectangle zone;       // les pixels visibles du sprite
+    private int tailleGrille;     // le nombre de cases au plus sur le plus grand côté
     private int cote;             // le côté d'une case, en pixels du sprite
     private int colonnes;
     private int lignes;
@@ -28,11 +29,12 @@ public class SilhouettePixelisee {
         hauteurImage = image.getHeight();
         zone = Bandes.zoneVisible(image);
 
-        // le côté vient du plus grand côté de la zone : pas plus de « sections » cases dans ce sens
+        // deux fois plus de cases que de sections sur le plus grand côté, mais pas plus que de pixels
         int plusGrandCote = Math.max(zone.width, zone.height);
-        cote = (int) Math.ceil((double) plusGrandCote / sections);
-        if (cote < 1) {
-            cote = 1; // image entièrement transparente
+        tailleGrille = Math.min(2 * sections, plusGrandCote);
+        cote = 1; // image entièrement transparente
+        if (tailleGrille > 0) {
+            cote = (int) Math.ceil((double) plusGrandCote / tailleGrille);
         }
         colonnes = (int) Math.ceil((double) zone.width / cote);
         lignes = (int) Math.ceil((double) zone.height / cote);
@@ -50,6 +52,12 @@ public class SilhouettePixelisee {
                 noires[ligne][colonne] = visibles >= REMPLISSAGE_MIN * cote * cote;
             }
         }
+    }
+
+    // 24 pour une silhouette de 24 × 24 cases au plus : le double du nombre de sections,
+    // sans dépasser le plus grand côté visible (en pixels)
+    public int getTailleGrille() {
+        return tailleGrille;
     }
 
     public int getCote() {
