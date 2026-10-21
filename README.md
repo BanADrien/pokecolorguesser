@@ -39,6 +39,12 @@ et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs
   télécharge lui-même la bonne version de Maven la première fois.
 - Une connexion Internet au premier lancement, pour télécharger les Pokémon depuis PokéAPI.
 
+## Lancer l'application sous Windows
+
+Double-cliquer sur `lancer.cmd` à la racine du projet : le script compile le projet avec le Maven Wrapper
+(sans relancer les tests), puis ouvre l'application. Il cherche le JDK 27 dans `JAVA_HOME`,
+sinon dans `%USERPROFILE%\.jdks\openjdk-27`.
+
 ## Lancer le projet dans IntelliJ IDEA
 
 1. **File › Open…** puis choisir le dossier du projet.
@@ -72,22 +78,23 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 .
 ├── pom.xml                         configuration Maven : dépendances, plugins, jar exécutable
 ├── mvnw, mvnw.cmd, .mvn/wrapper/   Maven Wrapper
+├── lancer.cmd                      double-clic : compile puis ouvre l'application (Windows)
 ├── src/main/java/fr/sdv/pokedex/
 │   ├── Main.java                   point d'entrée
-│   ├── PokedexFrame.java           fenêtre principale (onglets Pokédex, Quiz, Paramètres)
-│   ├── PokeApiClient.java          appels à PokéAPI et lecture du JSON avec Jackson
-│   ├── PokemonRepository.java      liste des Pokémon : depuis le cache, sinon depuis PokéAPI
-│   ├── SpriteCache.java            images téléchargées à la demande puis gardées en cache
-│   ├── Pokemon.java                un Pokémon (record)
-│   ├── PokemonTableModel.java      contenu du tableau
-│   ├── ColorBands.java             découpage d'un sprite en bandes de couleurs
-│   ├── QuizGame.java               déroulement d'une partie (vies, score), sans interface graphique
-│   ├── NameSuggestions.java        Pokémon proposés sous le champ de réponse, sans interface graphique
-│   ├── QuizSettings.java           réglages du quiz
-│   └── ColorBandsView.java, QuizPanel.java, SettingsPanel.java,
-│       SuggestionRenderer.java, LivesIcon.java                  interface du quiz
-├── src/test/java/fr/sdv/pokedex/   tests JUnit (sans réseau ni fenêtre)
-├── src/test/resources/pokeapi/     vraies réponses de PokéAPI, réduites, utilisées par les tests
+│   ├── FenetrePokedex.java         fenêtre principale (onglets Pokédex, Quiz, Paramètres)
+│   ├── ChargementPokedex.java      thread de chargement : liste des Pokémon, puis images du tableau
+│   ├── ApiPokemon.java             appels à PokéAPI et lecture du JSON avec Jackson
+│   ├── CachePokedex.java           fichier cache/pokedex.csv
+│   ├── CacheImages.java            images téléchargées une fois, puis gardées dans cache/sprites/
+│   ├── Pokemon.java                un Pokémon
+│   ├── ModeleTableau.java          contenu du tableau
+│   ├── Bandes.java, Bande.java     découpage d'une image en bandes de couleurs
+│   ├── PartieQuiz.java             déroulement d'une partie (vies, score), sans interface graphique
+│   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
+│   ├── Parametres.java             réglages du quiz
+│   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
+│       RenduSuggestion.java, IconeVies.java                     interface du quiz
+├── src/test/java/fr/sdv/pokedex/   11 tests JUnit (sans réseau ni fenêtre)
 └── docs/images/                    captures d'écran de ce README
 ```
 
@@ -97,8 +104,9 @@ L'application crée ces fichiers dans son dossier de travail. Ils sont propres �
 et ignorés par Git (voir `.gitignore`) :
 
 - `cache/pokedex.csv` : la liste des Pokémon, téléchargée une seule fois, comme le demande PokéAPI.
+  Le premier téléchargement se fait Pokémon par Pokémon et prend quelques minutes (barre de progression en bas).
   Supprimer ce fichier force un nouveau téléchargement.
-- `cache/sprites/` : les images des Pokémon, téléchargées au fur et à mesure.
+- `cache/sprites/` : les images des Pokémon, téléchargées une par une après la liste.
 - `parametres.properties` : les réglages du quiz.
 
 ## Crédits

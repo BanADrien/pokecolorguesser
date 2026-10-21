@@ -63,12 +63,6 @@
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.16.0</version>
-          <configuration>
-            <compilerArgs>
-              <!-- tous les avertissements, sauf [serial] qui ne sert à rien pour les classes Swing -->
-              <arg>-Xlint:all,-serial</arg>
-            </compilerArgs>
-          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
