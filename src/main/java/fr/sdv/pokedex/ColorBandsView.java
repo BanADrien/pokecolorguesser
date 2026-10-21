@@ -123,8 +123,18 @@ public final class ColorBandsView extends JComponent {
         g.setFont(captionFont);
         g.setColor(CAPTION);
         int captionY = top + boxHeight + CAPTION_GAP + captionMetrics.getAscent();
-        g.drawString("Indice", left + (boxWidth - captionMetrics.stringWidth("Indice")) / 2, captionY);
+        String hint = hintCaption();
+        g.drawString(hint, left + (boxWidth - captionMetrics.stringWidth(hint)) / 2, captionY);
         g.drawString("Réponse", right + (boxWidth - captionMetrics.stringWidth("Réponse")) / 2, captionY);
+    }
+
+    /** "Indice · 16 bandes" : le nombre de bandes change dans le quiz quand on perd une vie. */
+    private String hintCaption() {
+        int sections = bands.sections();
+        if (sections == 0) {
+            return "Indice";
+        }
+        return "Indice · " + sections + (sections > 1 ? " bandes" : " bande");
     }
 
     private static void paintBox(Graphics2D g, int x, int y, int width, int height) {

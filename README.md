@@ -11,16 +11,26 @@ et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs
 - **Pokédex** : un tableau avec l'image de chaque Pokémon, ses noms français et anglais, sa génération,
   ses types, sa taille, son poids et ses statistiques. Un clic sur un en-tête trie la colonne.
 - **Quiz des couleurs** : le sprite d'un Pokémon tiré au hasard est découpé en bandes horizontales.
-  Chaque bande montre la couleur la plus fréquente à cette hauteur et la largeur du Pokémon à cet endroit.
-  On répond avec un QCM à 4 propositions ou en écrivant le nom, en français ou en anglais
-  (majuscules et accents ne comptent pas). Le score s'affiche à la fin de la partie.
-- **Paramètres** : nombre de bandes (1 à 32), nombre de questions (1 à 50), mode de réponse,
-  types en indice et générations utilisées par le quiz. Un aperçu montre le résultat,
-  et les réglages sont enregistrés automatiquement.
+  Chaque bande montre la couleur la plus fréquente à cette hauteur et la largeur du Pokémon à cet endroit
+  (par défaut, les contours noirs du dessin ne comptent pas dans la couleur).
+  - **Réponse avec autocomplétion** : on tape les premières lettres du nom, en français ou en anglais
+    (majuscules, accents et ponctuation ne comptent pas). La liste sous le champ ne garde que les Pokémon
+    qui commencent ainsi, par exemple « Dracaufeu (Charizard) » pour « chari ». Les Pokémon trouvés
+    par leur nom français viennent d'abord, puis ceux trouvés par leur nom anglais, chaque groupe
+    dans l'ordre alphabétique. On choisit avec les flèches ↑ ↓ puis Entrée, ou d'un clic.
+  - **3 vies par Pokémon** : une mauvaise réponse coûte une vie (les cœurs au-dessus du champ),
+    le Pokémon proposé disparaît de la liste et l'image devient plus précise : le nombre de bandes double
+    (8, puis 16, puis 32). À la troisième erreur, ou avec « Passer », le Pokémon est dévoilé.
+  - Le score compte les Pokémon trouvés. Il s'affiche à la fin de la partie.
+- **Paramètres** : nombre de bandes (1 à 32), nombre de questions (1 à 50), contours noirs ignorés ou non,
+  types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
+  Un aperçu montre le résultat, et les réglages sont enregistrés automatiquement.
 
-| Réponse ratée | Paramètres |
+| Après une erreur : 2 vies, 16 bandes | Réponse ratée |
 |---|---|
-| ![Réponse ratée : le vrai Pokémon est dévoilé](docs/images/quiz-reponse-ratee.png) | ![Onglet Paramètres avec l'aperçu sur Pikachu](docs/images/parametres.png) |
+| ![Après une erreur, l'image est plus précise](docs/images/quiz-apres-erreur.png) | ![Réponse ratée : le vrai Pokémon est dévoilé](docs/images/quiz-reponse-ratee.png) |
+
+![Onglet Paramètres avec l'aperçu sur Pikachu](docs/images/parametres.png)
 
 ## Prérequis
 
@@ -71,9 +81,11 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── Pokemon.java                un Pokémon (record)
 │   ├── PokemonTableModel.java      contenu du tableau
 │   ├── ColorBands.java             découpage d'un sprite en bandes de couleurs
-│   ├── QuizGame.java               déroulement d'une partie, sans interface graphique
+│   ├── QuizGame.java               déroulement d'une partie (vies, score), sans interface graphique
+│   ├── NameSuggestions.java        Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── QuizSettings.java           réglages du quiz
-│   └── ColorBandsView.java, QuizPanel.java, SettingsPanel.java   interface du quiz
+│   └── ColorBandsView.java, QuizPanel.java, SettingsPanel.java,
+│       SuggestionRenderer.java, LivesIcon.java                  interface du quiz
 ├── src/test/java/fr/sdv/pokedex/   tests JUnit (sans réseau ni fenêtre)
 ├── src/test/resources/pokeapi/     vraies réponses de PokéAPI, réduites, utilisées par les tests
 └── docs/images/                    captures d'écran de ce README

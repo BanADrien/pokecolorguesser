@@ -4,25 +4,33 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
-import java.awt.Toolkit;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -31,10 +39,13 @@ import java.util.concurrent.ExecutionException;
 public final class QuizPanel extends JPanel {
 
     private static final Color SUCCESS = new Color(0, 130, 40);
+    private static final Color WARNING = new Color(205, 95, 0);
     private static final Color FAILURE = new Color(200, 30, 30);
-    private static final String CHOICES_CARD = "choix";
-    private static final String TYPING_CARD = "saisie";
-    private static final String EMPTY_CARD = "vide";
+    private static final Color STATUS = new Color(110, 110, 110);
+    private static final int ANSWER_WIDTH = 300;      // largeur de la colonne de réponse, en pixels
+    private static final int VISIBLE_SUGGESTIONS = 8; // lignes de la liste visibles sans la faire défiler
+    private static final int MAX_SHOWN_TEXT = 14;     // au-delà, le texte tapé est coupé dans la ligne d'état
+    private static final String HELP = "Tapez les premières lettres du nom…";
 
     /** Le résultat du chargement d'une question, préparé en arrière-plan. */
     private record LoadedQuestion(BufferedImage sprite, ColorBands bands) {
@@ -49,20 +60,21 @@ public final class QuizPanel extends JPanel {
     private final ColorBandsView view = new ColorBandsView();
     private final JLabel hintLabel = new JLabel(" ");
     private final JLabel resultLabel = new JLabel(" ");
-    private final CardLayout answerCards = new CardLayout();
-    private final JPanel answerPanel = new JPanel(answerCards);
-    private final JButton[] choiceButtons = new JButton[4]; // QCM à 4 propositions
-    private final JTextField nameField = new JTextField(18);
-    private final JButton validateButton = new JButton("Valider");
+    private final JLabel livesLabel = new JLabel("Vies :");
+    private final JTextField nameField = new JTextField();
+    private final JLabel suggestionStatus = new JLabel(" ");
+    private final DefaultListModel<Pokemon> suggestionModel = new DefaultListModel<>();
+    private final JList<Pokemon> suggestionList = new JList<>(suggestionModel);
     private final JButton skipButton = new JButton("Passer");
     private final JButton nextButton = new JButton("Commencer");
-    private final Color choiceForeground;
-    private final Font choiceFont;
 
     private List<Pokemon> pokemons = List.of();
     private QuizGame game;              // null tant qu'aucune partie n'a commencé
     private QuizSettings gameSettings;  // les réglages figés au début de la partie
-    private boolean loading;            // une question est en cours de chargement
+    private NameSuggestions suggestions = new NameSuggestions(List.of()); // les Pokémon de la partie
+    private BufferedImage questionSprite; // gardé pour recalculer les bandes quand on perd une vie
+    private ColorBands questionBands;     // les bandes affichées pour la question en cours
+    private boolean loading;           // une question est en cours de chargement
     private boolean finished;           // l'écran de fin est affiché
     private int loadToken;              // permet d'ignorer un chargement devenu inutile
 
@@ -83,57 +95,32 @@ public final class QuizPanel extends JPanel {
 
         resultLabel.setFont(labelFont.deriveFont(Font.BOLD, labelFont.getSize2D() + 2));
 
-        JPanel choicesGrid = new JPanel(new GridLayout(1, choiceButtons.length, 8, 0));
-        for (int i = 0; i < choiceButtons.length; i++) {
-            int index = i;
-            JButton button = new JButton(" ");
-            // largeur fixe : les boutons ne changent pas de taille d'une question à l'autre
-            button.setPreferredSize(new Dimension(180, button.getPreferredSize().height + 6));
-            button.addActionListener(e -> choose(index));
-            choiceButtons[i] = button;
-            choicesGrid.add(button);
-        }
-        choiceForeground = choiceButtons[0].getForeground();
-        choiceFont = choiceButtons[0].getFont();
-        JPanel choicesCard = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        choicesCard.add(choicesGrid);
-
-        JPanel typingCard = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        typingCard.add(new JLabel("Nom du Pokémon :"));
-        typingCard.add(nameField);
-        typingCard.add(validateButton);
-        typingCard.add(skipButton);
-        nameField.addActionListener(e -> submitName()); // touche Entrée dans le champ
-        validateButton.addActionListener(e -> submitName());
-        skipButton.addActionListener(e -> skipQuestion());
-
-        answerPanel.add(choicesCard, CHOICES_CARD);
-        answerPanel.add(typingCard, TYPING_CARD);
-        answerPanel.add(new JPanel(), EMPTY_CARD);
-
         nextButton.setPreferredSize(new Dimension(180, nextButton.getPreferredSize().height + 6));
         nextButton.addActionListener(e -> next());
 
         JPanel bottom = new JPanel();
         bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
         bottom.setBorder(BorderFactory.createEmptyBorder(0, 16, 16, 16));
-        for (JComponent component : List.of(hintLabel, resultLabel, answerPanel, nextButton)) {
+        for (JComponent component : List.of(hintLabel, resultLabel, nextButton)) {
             component.setAlignmentX(CENTER_ALIGNMENT);
         }
         bottom.add(hintLabel);
         bottom.add(Box.createVerticalStrut(6));
         bottom.add(resultLabel);
-        bottom.add(Box.createVerticalStrut(12));
-        bottom.add(answerPanel);
         bottom.add(Box.createVerticalStrut(14));
         bottom.add(nextButton);
 
+        // à gauche les bandes et le résultat, à droite la colonne de réponse
+        JPanel board = new JPanel(new BorderLayout());
+        board.add(view, BorderLayout.CENTER);
+        board.add(bottom, BorderLayout.SOUTH);
+
         add(header, BorderLayout.NORTH);
-        add(view, BorderLayout.CENTER);
-        add(bottom, BorderLayout.SOUTH);
+        add(board, BorderLayout.CENTER);
+        add(answerColumn(bottom.getPreferredSize().height), BorderLayout.EAST);
 
         // Après une réponse, Entrée passe à la suite, où que soit le focus dans l'onglet
-        // (le champ de saisie garde sa propre touche Entrée pour valider)
+        // (le champ de saisie garde sa propre touche Entrée pour répondre)
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "suite");
         getActionMap().put("suite", new AbstractAction() {
             @Override
@@ -147,9 +134,102 @@ public final class QuizPanel extends JPanel {
         // tant que les Pokémon ne sont pas chargés, on ne peut pas jouer
         progressLabel.setText("Quiz des couleurs");
         view.setMessage("Chargement des Pokémon…");
-        answerCards.show(answerPanel, EMPTY_CARD);
+        updateLives();
+        setAnswerControlsEnabled(false);
         newGameButton.setEnabled(false);
         nextButton.setEnabled(false);
+    }
+
+    /**
+     * La colonne de réponse : les vies, le champ de saisie, la liste des Pokémon encore possibles en dessous,
+     * et « Passer ». bottomHeight : la hauteur du message et du bouton sous les cases, laissée vide en bas
+     * de la colonne pour qu'elle soit centrée à la hauteur des cases.
+     */
+    private JPanel answerColumn(int bottomHeight) {
+        // à chaque lettre tapée ou effacée, la liste est recalculée
+        nameField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateSuggestions();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateSuggestions();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                // changement de style du texte : rien à faire pour un champ simple
+            }
+        });
+        nameField.addActionListener(e -> answerWithSelection()); // touche Entrée dans le champ
+        bindFieldKey(KeyEvent.VK_DOWN, "suggestion-suivante", () -> moveSelection(1));
+        bindFieldKey(KeyEvent.VK_UP, "suggestion-precedente", () -> moveSelection(-1));
+        nameField.setToolTipText("Flèches haut et bas pour choisir, Entrée pour répondre");
+
+        suggestionStatus.setForeground(STATUS);
+
+        suggestionList.setCellRenderer(new SuggestionRenderer());
+        suggestionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        suggestionList.setFocusable(false); // le clavier reste dans le champ de saisie
+        // tailles de ligne fixes : la liste n'a pas besoin de mesurer tous les noms à chaque lettre tapée
+        int rowHeight = suggestionList.getFontMetrics(suggestionList.getFont()).getHeight() + 4;
+        suggestionList.setFixedCellHeight(rowHeight);
+        suggestionList.setFixedCellWidth(ANSWER_WIDTH / 2); // les lignes prennent quand même toute la largeur
+        suggestionList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int index = suggestionList.locationToIndex(e.getPoint()); // -1 si la liste est vide
+                if (index < 0 || !SwingUtilities.isLeftMouseButton(e)) {
+                    return;
+                }
+                // locationToIndex donne la ligne la plus proche : on vérifie que le clic est bien dessus
+                Rectangle cell = suggestionList.getCellBounds(index, index);
+                if (cell.contains(e.getPoint())) {
+                    answerWith(index);
+                }
+            }
+        });
+        JScrollPane scroll = new JScrollPane(suggestionList,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        Insets borders = scroll.getInsets();
+        scroll.setPreferredSize(new Dimension(ANSWER_WIDTH,
+                VISIBLE_SUGGESTIONS * rowHeight + borders.top + borders.bottom));
+
+        skipButton.addActionListener(e -> skipQuestion());
+        livesLabel.setHorizontalTextPosition(JLabel.LEADING); // le texte « Vies : », puis les cœurs
+        livesLabel.setIconTextGap(8);
+
+        JPanel column = new JPanel(new GridBagLayout()); // sans weighty : le contenu reste centré en hauteur
+        column.setBorder(BorderFactory.createEmptyBorder(8, 0, 8 + bottomHeight, 16));
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 12, 0);
+        column.add(livesLabel, c);
+        c.insets = new Insets(0, 0, 4, 0);
+        column.add(new JLabel("Nom du Pokémon (français ou anglais) :"), c);
+        column.add(nameField, c);
+        column.add(suggestionStatus, c);
+        c.insets = new Insets(0, 0, 0, 0);
+        column.add(scroll, c);
+        c.fill = GridBagConstraints.NONE;
+        c.anchor = GridBagConstraints.EAST;
+        c.insets = new Insets(10, 0, 0, 0);
+        column.add(skipButton, c);
+        return column;
+    }
+
+    /** Associe une touche, quand le champ de saisie a le focus, à une action. */
+    private void bindFieldKey(int keyCode, String name, Runnable action) {
+        nameField.getInputMap().put(KeyStroke.getKeyStroke(keyCode, 0), name);
+        nameField.getActionMap().put(name, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                action.run();
+            }
+        });
     }
 
     /** Appelé à la fin du chargement : le quiz devient jouable. */
@@ -169,17 +249,13 @@ public final class QuizPanel extends JPanel {
     private void startGame() {
         // une copie : changer les paramètres pendant la partie ne la perturbe pas
         gameSettings = settings.copy();
-        List<Pokemon> pool = new ArrayList<>();
-        for (Pokemon pokemon : pokemons) {
-            if (gameSettings.isGenerationEnabled(pokemon.generation()) && !pokemon.spriteUrl().isEmpty()) {
-                pool.add(pokemon);
-            }
-        }
+        List<Pokemon> pool = gameSettings.pool(pokemons);
         if (pool.isEmpty()) {
             view.setMessage("Aucun Pokémon dans les générations choisies.");
             return;
         }
         game = new QuizGame(pool, gameSettings.getQuestionCount(), random);
+        suggestions = new NameSuggestions(pool); // la liste ne propose que les Pokémon de la partie
         finished = false;
         loadQuestion();
     }
@@ -188,9 +264,9 @@ public final class QuizPanel extends JPanel {
     private void next() {
         if (game == null || finished) {
             startGame();
-        } else if (game.isAnswered() && game.isLastQuestion()) {
+        } else if (game.isQuestionOver() && game.isLastQuestion()) {
             showEnd();
-        } else if (game.isAnswered()) {
+        } else if (game.isQuestionOver()) {
             game.next();
             loadQuestion();
         }
@@ -200,15 +276,17 @@ public final class QuizPanel extends JPanel {
     private void loadQuestion() {
         int token = ++loadToken;
         Pokemon pokemon = game.current();
-        int sections = gameSettings.getSections();
+        int sections = game.sections(gameSettings.getSections());
+        boolean ignoreDarkOutline = gameSettings.isIgnoreDarkOutline();
 
         loading = true;
         updateProgress();
+        updateLives();
         view.setMessage("Chargement de la question…");
         hintLabel.setText(" ");
         resultLabel.setText(" ");
-        prepareAnswerControls();
         setAnswerControlsEnabled(false);
+        clearAnswerField();
         nextButton.setText(game.isLastQuestion() ? "Voir le score" : "Question suivante");
         nextButton.setEnabled(false);
 
@@ -216,7 +294,7 @@ public final class QuizPanel extends JPanel {
             @Override
             protected LoadedQuestion doInBackground() throws Exception {
                 BufferedImage sprite = sprites.loadOriginal(pokemon);
-                return new LoadedQuestion(sprite, ColorBands.from(sprite, sections));
+                return new LoadedQuestion(sprite, ColorBands.from(sprite, sections, ignoreDarkOutline));
             }
 
             @Override
@@ -227,12 +305,12 @@ public final class QuizPanel extends JPanel {
                 loading = false;
                 try {
                     LoadedQuestion question = get();
-                    view.show(question.bands(), question.sprite(), false);
+                    questionSprite = question.sprite();
+                    questionBands = question.bands();
+                    view.show(questionBands, questionSprite, false);
                     showHint(pokemon);
                     setAnswerControlsEnabled(true);
-                    if (!gameSettings.isMultipleChoice()) {
-                        nameField.requestFocusInWindow();
-                    }
+                    nameField.requestFocusInWindow();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException e) {
@@ -240,7 +318,6 @@ public final class QuizPanel extends JPanel {
                     game.skip();
                     view.setMessage("L'image de " + describe(pokemon) + " est indisponible.\n"
                             + "La question est passée.");
-                    answerCards.show(answerPanel, EMPTY_CARD);
                     resultLabel.setForeground(FAILURE);
                     resultLabel.setText("Question passée faute d'image (vérifiez la connexion).");
                     afterAnswer();
@@ -249,33 +326,57 @@ public final class QuizPanel extends JPanel {
         }.execute();
     }
 
-    private void prepareAnswerControls() {
-        if (gameSettings.isMultipleChoice()) {
-            List<Pokemon> choices = game.choices();
-            for (int i = 0; i < choiceButtons.length; i++) {
-                JButton button = choiceButtons[i];
-                button.setForeground(choiceForeground);
-                button.setFont(choiceFont);
-                button.setVisible(i < choices.size());
-                if (i < choices.size()) {
-                    button.setText(choices.get(i).nameFr());
-                }
-            }
-            answerCards.show(answerPanel, CHOICES_CARD);
+    private void setAnswerControlsEnabled(boolean enabled) {
+        nameField.setEnabled(enabled);
+        suggestionList.setEnabled(enabled);
+        skipButton.setEnabled(enabled);
+        updateStatus();
+    }
+
+    /** Vide le champ de saisie, et donc la liste des suggestions. */
+    private void clearAnswerField() {
+        nameField.setText("");
+        updateSuggestions(); // si le champ était déjà vide, setText ne prévient pas le DocumentListener
+    }
+
+    /**
+     * Remplit la liste avec les Pokémon dont le nom commence par le texte tapé, sauf ceux déjà proposés à tort
+     * pour cette question. Le premier est choisi d'office.
+     */
+    private void updateSuggestions() {
+        List<Pokemon> excluded = game == null ? List.of() : game.wrongGuesses();
+        suggestionModel.clear();
+        suggestionModel.addAll(suggestions.suggest(nameField.getText(), excluded));
+        if (!suggestionModel.isEmpty()) {
+            suggestionList.setSelectedIndex(0);
+            suggestionList.ensureIndexIsVisible(0);
+        }
+        updateStatus();
+    }
+
+    /** La petite ligne grise entre le champ et la liste : aide, nombre de Pokémon possibles ou aucun résultat. */
+    private void updateStatus() {
+        String typed = nameField.getText().strip();
+        int count = suggestionModel.getSize();
+        if (QuizGame.normalize(typed).isEmpty()) {
+            suggestionStatus.setText(nameField.isEnabled() ? HELP : " ");
+        } else if (count == 0) {
+            String shown = typed.length() <= MAX_SHOWN_TEXT ? typed : typed.substring(0, MAX_SHOWN_TEXT) + "…";
+            suggestionStatus.setText("Aucun Pokémon ne commence par « " + shown + " »");
         } else {
-            nameField.setText("");
-            nameField.setEditable(true);
-            answerCards.show(answerPanel, TYPING_CARD);
+            suggestionStatus.setText(count + (count == 1 ? " Pokémon possible" : " Pokémon possibles"));
         }
     }
 
-    private void setAnswerControlsEnabled(boolean enabled) {
-        for (JButton button : choiceButtons) {
-            button.setEnabled(enabled);
+    /** Flèches haut et bas dans le champ : on change de ligne dans la liste. */
+    private void moveSelection(int delta) {
+        int count = suggestionModel.getSize();
+        if (!canAnswer() || count == 0) {
+            return;
         }
-        nameField.setEnabled(enabled);
-        validateButton.setEnabled(enabled);
-        skipButton.setEnabled(enabled);
+        int index = Math.clamp(suggestionList.getSelectedIndex() + delta, 0, count - 1);
+        suggestionList.setSelectedIndex(index);
+        suggestionList.ensureIndexIsVisible(index);
     }
 
     private void showHint(Pokemon pokemon) {
@@ -288,37 +389,29 @@ public final class QuizPanel extends JPanel {
     }
 
     private boolean canAnswer() {
-        return game != null && !finished && !loading && !game.isAnswered();
+        return game != null && !finished && !loading && !game.isQuestionOver();
     }
 
-    private void choose(int index) {
-        // après la réponse, les boutons restent actifs (pour garder leurs couleurs lisibles) : on ignore le clic
+    /** Entrée dans le champ : on répond avec le Pokémon choisi dans la liste. Liste vide : rien ne se passe. */
+    private void answerWithSelection() {
+        int index = suggestionList.getSelectedIndex();
+        if (index >= 0) {
+            answerWith(index);
+        }
+    }
+
+    /** Répond avec le Pokémon de la ligne index (touche Entrée ou clic). */
+    private void answerWith(int index) {
         if (!canAnswer()) {
             return;
         }
-        List<Pokemon> choices = game.choices();
-        boolean correct = game.answer(choices.get(index));
-        for (int i = 0; i < choices.size(); i++) {
-            if (choices.get(i).id() == game.current().id()) {
-                choiceButtons[i].setForeground(SUCCESS);
-                choiceButtons[i].setFont(choiceFont.deriveFont(Font.BOLD));
-            } else if (i == index) {
-                choiceButtons[i].setForeground(FAILURE);
-            }
+        Pokemon chosen = suggestionModel.get(index);
+        suggestionList.setSelectedIndex(index); // la ligne choisie reste visible après la réponse
+        switch (game.answer(chosen)) {
+            case CORRECT -> showAnswer(true, false);
+            case WRONG_RETRY -> showRetry(chosen);
+            case LOST -> showAnswer(false, false);
         }
-        showAnswer(correct, false);
-    }
-
-    private void submitName() {
-        if (!canAnswer()) {
-            return;
-        }
-        String typed = nameField.getText().trim();
-        if (typed.isEmpty()) {
-            Toolkit.getDefaultToolkit().beep();
-            return;
-        }
-        showAnswer(game.answer(typed), false);
     }
 
     private void skipQuestion() {
@@ -329,20 +422,48 @@ public final class QuizPanel extends JPanel {
         showAnswer(false, true);
     }
 
-    private void showAnswer(boolean correct, boolean skipped) {
+    /** Une vie perdue, mais il en reste : l'image devient plus précise et on peut réessayer. */
+    private void showRetry(Pokemon wrong) {
+        int before = questionBands.sections();
+        questionBands = ColorBands.from(questionSprite, game.sections(gameSettings.getSections()),
+                gameSettings.isIgnoreDarkOutline()); // le sprite est déjà chargé : c'est instantané
+        view.show(questionBands, questionSprite, false);
+        updateLives();
+
+        int lives = game.livesLeft();
+        String left = lives == 1 ? "Plus qu'une vie" : "Plus que " + lives + " vies";
+        // si le sprite n'a pas assez de lignes pour plus de bandes, l'image ne change pas
+        String precision = questionBands.sections() > before ? " : l'image est plus précise." : ".";
+        resultLabel.setForeground(WARNING);
+        resultLabel.setText("Ce n'est pas " + wrong.nameFr() + "… " + left + precision);
+
+        clearAnswerField(); // le Pokémon proposé à tort disparaît aussi des suggestions
+        nameField.requestFocusInWindow();
+    }
+
+    private void showAnswer(boolean found, boolean skipped) {
         Pokemon pokemon = game.current();
         view.reveal();
-        if (correct) {
+        updateLives();
+        if (found) {
+            int attempt = game.attempt();
             resultLabel.setForeground(SUCCESS);
-            resultLabel.setText("Bravo ! C'est " + describe(pokemon));
+            resultLabel.setText("Bravo ! C'est " + describe(pokemon)
+                    + (attempt == 1 ? ", du premier coup !" : ", trouvé au " + attempt + "e essai."));
         } else {
             resultLabel.setForeground(FAILURE);
             resultLabel.setText((skipped ? "Passé… " : "Raté… ") + "C'était " + describe(pokemon));
         }
-        nameField.setEditable(false);
-        validateButton.setEnabled(false);
-        skipButton.setEnabled(false);
+        setAnswerControlsEnabled(false);
         afterAnswer();
+    }
+
+    /** Les cœurs de la colonne de réponse : les vies qui restent pour la question en cours. */
+    private void updateLives() {
+        int lives = game == null || finished ? QuizGame.LIVES : game.livesLeft();
+        livesLabel.setIcon(new LivesIcon(lives, QuizGame.LIVES));
+        livesLabel.setToolTipText(lives + (lives > 1 ? " vies" : " vie") + " sur " + QuizGame.LIVES
+                + " pour ce Pokémon. À chaque erreur, l'image devient plus précise.");
     }
 
     private void afterAnswer() {
@@ -359,7 +480,8 @@ public final class QuizPanel extends JPanel {
         view.setMessage("Partie terminée !\nScore final : " + score + " / " + count + "\n" + comment(score, count));
         hintLabel.setText(" ");
         resultLabel.setText(" ");
-        answerCards.show(answerPanel, EMPTY_CARD);
+        clearAnswerField();
+        updateLives();
         nextButton.setText("Rejouer");
         nextButton.setEnabled(true);
         nextButton.requestFocusInWindow();

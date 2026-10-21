@@ -47,12 +47,21 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   Changer l'en-tête du CSV (`HEADER`) quand son format change : l'ancien cache est alors re-téléchargé automatiquement.
 - `SpriteCache` : sprites 96×96 téléchargés à la demande, gardés dans `cache/sprites/`.
 - `Pokemon` (record), `PokemonTableModel`, `PokedexFrame` (onglets Pokédex / Quiz / Paramètres).
-- Quiz : `ColorBands` (couleur dominante par bande horizontale), `QuizGame` (logique sans interface),
-  `QuizSettings` (réglages, fichier `parametres.properties`), `ColorBandsView`, `QuizPanel`, `SettingsPanel`.
+- Quiz : `ColorBands` (couleur dominante par bande horizontale, contours presque noirs ignorés en option),
+  `QuizGame` (logique sans interface : `LIVES` = 3 vies par Pokémon, `answer` renvoie `Result`
+  CORRECT / WRONG_RETRY / LOST, `sections(base)` double les bandes à chaque vie perdue),
+  `NameSuggestions` (autocomplétion de la réponse : préfixe du nom français ou anglais normalisé,
+  français d'abord, puis anglais, tri `Collator` français, sans les Pokémon déjà proposés à tort),
+  `QuizSettings` (réglages, fichier `parametres.properties` ; `pool(...)` = Pokémon des générations cochées),
+  `ColorBandsView`, `QuizPanel` (champ + liste de suggestions, cœurs des vies), `SuggestionRenderer`
+  (ligne de la liste, nom anglais en gris), `LivesIcon` (cœurs dessinés en Java2D), `SettingsPanel`.
+- Il n'y a plus qu'un mode de réponse (champ avec autocomplétion) : une ancienne clé `mode=` dans
+  `parametres.properties` est ignorée au chargement.
 
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
-- `QuizGameTest`, `ColorBandsTest`, `QuizSettingsTest`, `PokemonRepositoryTest`, `PokeApiClientTest` (40 tests).
+- `QuizGameTest`, `NameSuggestionsTest`, `ColorBandsTest`, `QuizSettingsTest`, `PokemonRepositoryTest`,
+  `PokeApiClientTest` (65 tests).
 - Jamais de réseau ni de fenêtre : `BufferedImage` dessinées pixel par pixel, fichiers dans un `@TempDir`,
   JSON d'exemple dans `src/test/resources/pokeapi/` (vraies réponses generation/1, pokemon-species/25 et pokemon/25,
   réduites aux champs utilisés par le code).
@@ -66,6 +75,8 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
 - Logique séparée de l'interface (ex. `QuizGame` ne dépend pas de Swing) pour pouvoir la tester avec JUnit.
 - Travail long (réseau, images) dans un `SwingWorker` ou un pool de threads, jamais dans le thread Swing.
 - Pas de symboles ✔ ✘ ✓ dans l'interface : ils s'affichent en carrés avec les polices Windows (« … » et « · » sont OK).
+  Pour un pictogramme (comme les cœurs des vies), le dessiner en Java2D dans une `Icon` (voir `LivesIcon`)
+  plutôt que d'utiliser un caractère.
 - PokéAPI demande de mettre les données en cache : ne pas re-télécharger ce qui est déjà dans `cache/`.
 - `cache/` et `parametres.properties` sont locaux et ignorés par git.
 - Mise en forme : `.editorconfig` (UTF-8, 4 espaces pour le Java, 2 pour XML, YAML et Markdown).
