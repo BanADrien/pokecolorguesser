@@ -1,7 +1,8 @@
 # Pokédex Java (cours SDV)
 
 Application Java Swing : un Pokédex (tableau des Pokémon des générations 1 à 8 récupérés sur PokéAPI),
-un quiz « deviner le Pokémon à partir de ses bandes de couleurs, puis de sa silhouette » et une page de paramètres.
+un quiz « deviner le Pokémon à partir de ses bandes de couleurs, puis de sa silhouette pixelisée », avec des points,
+et une page de paramètres.
 `README.md` : la documentation pour l'utilisateur (à garder à jour).
 
 ## Environnement
@@ -64,38 +65,52 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   chaque changement, puis `fireTableDataChanged()` ; pas de `RowFilter` ; `getColumnClass` renvoie `Class` sans `<?>`,
   comme dans le tutoriel Swing d'Oracle).
 - Quiz : l'indice dépend des vies restantes. `PartieQuiz.getIndice()` vaut `INDICE_COLONNES` à 3 vies,
-  `INDICE_LIGNES` à 2 vies, `INDICE_SILHOUETTE` à 1 vie (et à 0 : la silhouette reste à côté du Pokémon dévoilé).
-  Colonnes et lignes ont le même nombre de sections : le réglage `sections` (12 par défaut), sans doublement.
+  `INDICE_LIGNES` à 2 vies, `INDICE_SILHOUETTE` (silhouette pixelisée) à 1 vie (et à 0 : elle reste à côté du
+  Pokémon dévoilé). Colonnes, lignes et silhouette utilisent le même réglage `sections` (12 par défaut).
 - `Bandes` et `Bande` (colonnes verticales ou lignes horizontales selon le paramètre `vertical` du constructeur :
   couleur la plus fréquente de chaque section, contours presque noirs ignorés en option ; une colonne va du pixel
   visible le plus haut au plus bas de sa section, une ligne du plus à gauche au plus à droite ; nombre de sections
   plafonné à la largeur visible pour les colonnes, à la hauteur visible pour les lignes).
-  `Bandes.silhouette(image)` : image de même taille, pixels visibles (même seuil d'opacité, 128) en noir, les autres
-  transparents ; l'option des contours ne la change pas. `Bandes.zoneVisible(image)` : rectangle des pixels visibles.
-- `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon, `getIndice()`),
+  `Bandes.zoneVisible(image)` : rectangle des pixels visibles ; `Bandes.estVisible(pixel)` : opacité >= 128.
+- `SilhouettePixelisee(image, sections)` : la zone visible découpée en cases carrées de côté
+  `ceil(plus grand côté / sections)` (donc au plus `sections` cases sur le plus grand côté) ; la grille couvre
+  toute la zone, centrée en largeur et posée en bas (elle dépasse de moins d'une case, les cases du bord sont
+  coupées par `getCase`) ; une case est noire si ses pixels visibles >= `REMPLISSAGE_MIN` (0,5) × côté²
+  (seuil choisi en regardant de vrais sprites : la forme reste, oreilles, doigts et queues fines disparaissent).
+  Getters `getCote`, `getNombreColonnes`, `getNombreLignes`, `isNoire(ligne, colonne)`, `getCase` ; `creerImage()`
+  donne une image de la taille du sprite (cases noires, reste transparent). L'option des contours ne la change pas.
+- `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon, `getIndice()`).
+  Points : un Pokémon trouvé rapporte les vies qui restent (3, 2 ou 1), 0 si la question est perdue ;
+  `getPoints()`, `getPointsMax()` = 3 × nombre de questions de la partie, `getPointsQuestion()`.
+  `passer()` (bouton « Passer ») : une vie en moins, comme une erreur, sans mauvais essai ; à la dernière vie,
+  la question est perdue. `abandonner()` : finit la question tout de suite (image indisponible).
   `Suggestions` (autocomplétion : préfixe du nom français ou anglais normalisé par `normaliser`, français d'abord,
   puis anglais, tri `Collator` français, sans les Pokémon déjà proposés à tort), `Parametres` (réglages, fichier
   `parametres.properties` avec les clés `sections`, `questions`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ;
   les anciennes clés `mode` et `sens` sont ignorées ; `pokemonsDuQuiz(...)` = Pokémon des générations cochées).
-- Dans `PanneauQuiz`, `dessinerIndice()` dessine l'indice de `partie.getIndice()` au début de la question
-  et après chaque erreur (message « Plus que 2 vies : voici l'image en lignes. », puis « Plus qu'une vie : voici
-  la silhouette. »).
+- Dans `PanneauQuiz`, `dessinerIndice()` dessine l'indice de `partie.getIndice()` au début de la question,
+  après chaque erreur et après « Passer » (`afficherIndiceSuivant` : « Ce n'est pas X… » ou « Indice suivant… »,
+  puis « Plus que 2 vies : voici l'image en lignes. » ou « Plus qu'une vie : voici la silhouette pixelisée. »).
+  En haut : « Question 4 / 10 · Score : 8 / 30 » ; réussite : « Bravo ! C'est X, du premier coup : +3 points »
+  (« trouvé au 2e essai : +2 points », « au 3e essai : +1 point ») ; échec : « Raté… C'était X : 0 point » ;
+  fin : « Score final : 23 / 30 » et un commentaire selon la part des points.
 - Interface du quiz : `PanneauQuiz`, `PanneauParametres` (aperçu : les 3 indices et la réponse, recalculés à chaque
   changement de réglage), `PanneauBandes` (des cases côte à côte avec leur légende : `nouvellesCases(sprite)`, puis
-  `ajouterBandes` ou `ajouterImage` (silhouette, sprite, ou `null` pour un « ? ») ; même échelle entière et même
-  placement dans toutes les cases (centré, posé en bas), donc alignés sur le sprite ; légendes « Indice · 12 colonnes »,
-  « Indice · 12 lignes », « Indice · silhouette » ; les 4 cases de l'aperçu passent sur 2 rangées si elles y sont
-  plus grandes),
+  `ajouterBandes` ou `ajouterImage` (silhouette pixelisée, sprite, ou `null` pour un « ? ») ; même échelle entière
+  et même placement dans toutes les cases (centré, posé en bas), donc alignés sur le sprite ; légendes
+  « Indice · 12 colonnes », « Indice · 12 lignes », « Indice · silhouette pixelisée » ; les 4 cases de l'aperçu
+  passent sur 2 rangées si elles y sont plus grandes),
   `RenduSuggestion` (ligne de la liste, nom anglais en gris ; la liste est un `JTable` d'une colonne),
   `IconeVies` (cœurs dessinés en Java2D). Le chargement d'une image pour le quiz ou l'aperçu se fait dans un
   `new Thread() { ... }`, avec un numéro de chargement pour ignorer un résultat devenu inutile.
 
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
-- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest`, `FiltrePokedexTest`, `CachePokedexTest`
-  (28 tests : 4 + 4 + 3 + 5 + 10 + 2 ; `CachePokedexTest` écrit dans un dossier `@TempDir` de JUnit).
+- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest`, `SilhouettePixeliseeTest`,
+  `FiltrePokedexTest`, `CachePokedexTest` (37 tests : 4 + 11 + 3 + 4 + 3 + 10 + 2 ;
+  `CachePokedexTest` écrit dans un dossier `@TempDir` de JUnit).
 - Écrits simplement, comme en cours : `assertEquals`, `assertTrue`, `assertFalse`.
-- Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes.
+- Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes et la silhouette pixelisée.
 - Les tests sont dans le même paquet que le code.
 - Toute nouvelle logique (hors Swing) doit avoir ses tests. L'interface Swing n'est pas testée avec JUnit.
 

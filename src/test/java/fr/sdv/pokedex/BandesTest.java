@@ -114,27 +114,4 @@ class BandesTest {
         // 32 sections : pas plus de colonnes que de pixels en largeur
         assertEquals(30, new Bandes(image, 32, true, true).getNombreSections());
     }
-
-    @Test
-    void laSilhouetteRendLesPixelsVisiblesNoirs() {
-        // une petite image de 3 × 2 : un pixel rouge, un vert à moitié transparent (encore visible),
-        // un bleu presque transparent (invisible) et trois pixels transparents
-        BufferedImage image = new BufferedImage(3, 2, BufferedImage.TYPE_INT_ARGB);
-        image.setRGB(0, 0, Color.RED.getRGB());
-        image.setRGB(1, 0, new Color(0, 255, 0, 200).getRGB());
-        image.setRGB(2, 1, new Color(0, 0, 255, 50).getRGB());
-
-        BufferedImage silhouette = Bandes.silhouette(image);
-
-        assertEquals(3, silhouette.getWidth());
-        assertEquals(2, silhouette.getHeight());
-        assertEquals(Color.BLACK.getRGB(), silhouette.getRGB(0, 0));
-        assertEquals(Color.BLACK.getRGB(), silhouette.getRGB(1, 0));
-        // les pixels invisibles restent vides (complètement transparents)
-        assertEquals(0, silhouette.getRGB(2, 1));
-        assertEquals(0, silhouette.getRGB(2, 0));
-        assertEquals(0, silhouette.getRGB(0, 1));
-        // l'image d'origine ne change pas
-        assertEquals(Color.RED.getRGB(), image.getRGB(0, 0));
-    }
 }

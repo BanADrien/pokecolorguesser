@@ -95,7 +95,8 @@ public class PanneauParametres extends JPanel {
 
     private JPanel creerCadreQuiz() {
         choixSections = creerChoixNombre(parametres.getSections(), Parametres.SECTIONS_MIN, Parametres.SECTIONS_MAX);
-        choixSections.setToolTipText("Nombre de colonnes (3 vies), puis de lignes (2 vies) de l'indice");
+        choixSections.setToolTipText("Nombre de colonnes (3 vies), puis de lignes (2 vies) de l'indice, "
+                + "et de cases sur le plus grand côté de la silhouette pixelisée (1 vie)");
         choixSections.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
@@ -316,10 +317,11 @@ public class PanneauParametres extends JPanel {
             boolean contours = parametres.isIgnorerContoursNoirs();
             Bandes colonnes = new Bandes(imageExemple, sections, contours, true);
             Bandes lignes = new Bandes(imageExemple, sections, contours, false);
+            SilhouettePixelisee silhouette = new SilhouettePixelisee(imageExemple, sections);
             apercu.nouvellesCases(imageExemple);
             apercu.ajouterBandes(colonnes, "3 vies : " + PanneauBandes.decrire(colonnes));
             apercu.ajouterBandes(lignes, "2 vies : " + PanneauBandes.decrire(lignes));
-            apercu.ajouterImage(Bandes.silhouette(imageExemple), "1 vie : silhouette");
+            apercu.ajouterImage(silhouette.creerImage(), "1 vie : silhouette pixelisée");
             apercu.ajouterImage(imageExemple, "Réponse");
         }
     }

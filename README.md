@@ -2,7 +2,7 @@
 
 Application de bureau en Java Swing, réalisée dans le cadre d'un cours à SDV :
 un Pokédex des 905 Pokémon des générations 1 à 8 (données de [PokéAPI](https://pokeapi.co/))
-et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis de sa silhouette.
+et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis de sa silhouette pixelisée.
 
 ![Une question du quiz](docs/images/quiz-question.png)
 
@@ -24,10 +24,18 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
   - **3 vies par Pokémon, un indice par vie** :
     - 3 vies (au départ) : des **colonnes verticales**, 12 par défaut (le réglage « Nombre de sections »),
       sans dépasser la largeur du Pokémon en pixels ;
-    - 2 vies (après une erreur) : le même nombre de **lignes horizontales**, sans dépasser sa hauteur ;
-    - 1 vie (après deux erreurs) : la **silhouette noire** du Pokémon, à la même taille et à la même place
-      que son sprite ;
-    - à la troisième erreur, ou avec « Passer », le Pokémon est dévoilé.
+    - 2 vies : le même nombre de **lignes horizontales**, sans dépasser sa hauteur ;
+    - 1 vie : la **silhouette pixelisée** du Pokémon, à la même taille et à la même place que son sprite.
+      Le Pokémon est découpé en cases carrées, environ 12 × 12 (le même réglage : 12 cases au plus
+      sur son plus grand côté), et une case est noire si le Pokémon en remplit au moins la moitié.
+      La forme générale reste, mais les détails fins (oreilles, queue, pattes) disparaissent ;
+    - quand la dernière vie est perdue, le Pokémon est dévoilé.
+  - **« Passer »** montre l'indice suivant, mais coûte une vie, comme une erreur (sans compter de mauvais
+    Pokémon). Avec une seule vie, « Passer » perd la question.
+  - **Points** : un Pokémon trouvé rapporte les vies qui restent, donc 3 points du premier coup,
+    2 points au 2e essai et 1 point au 3e (« Passer » compte comme un essai). Une question perdue rapporte
+    0 point. Le score est sur 3 × le nombre de questions (30 pour 10 questions) ; il s'affiche en haut
+    pendant la partie (« Question 4 / 10 · Score : 8 / 30 ») et à la fin, avec un petit commentaire.
   - **Réponse avec autocomplétion** : on tape les premières lettres du nom, en français ou en anglais
     (majuscules, accents et ponctuation ne comptent pas). La liste sous le champ ne garde que les Pokémon
     qui commencent ainsi, par exemple « Dracaufeu (Charizard) » pour « chari ». Les Pokémon trouvés
@@ -35,8 +43,8 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
     dans l'ordre alphabétique. On choisit avec les flèches ↑ ↓ puis Entrée, ou d'un clic.
   - Une mauvaise réponse coûte une vie (les cœurs au-dessus du champ) et le Pokémon proposé
     disparaît de la liste.
-  - Le score compte les Pokémon trouvés. Il s'affiche à la fin de la partie.
-- **Paramètres** : nombre de sections (1 à 32, 12 par défaut : le nombre de colonnes, puis de lignes),
+- **Paramètres** : nombre de sections (1 à 32, 12 par défaut : le nombre de colonnes, puis de lignes,
+  puis de cases sur le plus grand côté de la silhouette pixelisée),
   nombre de questions (1 à 50), contours noirs ignorés ou non (pour les colonnes et les lignes),
   types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
   Un aperçu montre les trois indices et la réponse, et les réglages sont enregistrés automatiquement.
@@ -44,15 +52,19 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
 
 ![Onglet Pokédex : génération 1 et type Feu](docs/images/pokedex.png)
 
-![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette, puis la réponse](docs/images/indices-3-etapes.png)
+![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette pixelisée, puis la réponse](docs/images/indices-3-etapes.png)
 
-| Après une erreur : 2 vies, 12 lignes | Après deux erreurs : 1 vie, la silhouette |
+| Après une erreur : 2 vies, 12 lignes | Après deux erreurs : 1 vie, la silhouette pixelisée |
 |---|---|
-| ![Après une erreur, l'indice passe en lignes](docs/images/quiz-apres-erreur.png) | ![Après deux erreurs, l'indice est la silhouette](docs/images/quiz-silhouette.png) |
+| ![Après une erreur, l'indice passe en lignes](docs/images/quiz-apres-erreur.png) | ![Après deux erreurs, l'indice est la silhouette pixelisée](docs/images/quiz-silhouette.png) |
 
-| Réponse ratée | Onglet Paramètres |
+| Réponse ratée : 0 point | Après « Passer » : 2 vies, 12 lignes |
 |---|---|
-| ![Réponse ratée : le vrai Pokémon est dévoilé à côté de sa silhouette](docs/images/quiz-reponse-ratee.png) | ![Onglet Paramètres avec l'aperçu des trois indices sur Pikachu](docs/images/parametres.png) |
+| ![Réponse ratée : le vrai Pokémon est dévoilé à côté de sa silhouette pixelisée](docs/images/quiz-reponse-ratee.png) | ![Après « Passer », l'indice passe en lignes et une vie est perdue](docs/images/quiz-passer.png) |
+
+| Fin de partie | Onglet Paramètres |
+|---|---|
+| ![Fin de partie : le score final sur 30 et un commentaire](docs/images/quiz-fin.png) | ![Onglet Paramètres avec l'aperçu des trois indices sur Pikachu](docs/images/parametres.png) |
 
 ## Prérequis
 
@@ -112,13 +124,14 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── PanneauPokedex.java         onglet Pokédex : recherche, filtres et tableau
 │   ├── FiltrePokedex.java          recherche et filtres du Pokédex, sans interface graphique
 │   ├── ModeleTableau.java          contenu du tableau : tous les Pokémon et ceux qui passent les filtres
-│   ├── Bandes.java, Bande.java     découpage d'une image en colonnes ou en lignes de couleurs, silhouette
-│   ├── PartieQuiz.java             déroulement d'une partie (vies, indice, score), sans interface graphique
+│   ├── Bandes.java, Bande.java     découpage d'une image en colonnes ou en lignes de couleurs
+│   ├── SilhouettePixelisee.java    silhouette en cases carrées (le dernier indice)
+│   ├── PartieQuiz.java             déroulement d'une partie (vies, indice, points), sans interface graphique
 │   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── Parametres.java             réglages du quiz
 │   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
 │       RenduSuggestion.java, IconeVies.java                     interface du quiz
-├── src/test/java/fr/sdv/pokedex/   28 tests JUnit (sans réseau ni fenêtre)
+├── src/test/java/fr/sdv/pokedex/   37 tests JUnit (sans réseau ni fenêtre)
 └── docs/images/                    captures d'écran de ce README
 ```
 

@@ -17,7 +17,8 @@ public class Parametres {
     public static final int QUESTIONS_MIN = 1;
     public static final int QUESTIONS_MAX = 50;
 
-    // le nombre de colonnes (3 vies) et de lignes (2 vies) de l'indice
+    // le nombre de colonnes (3 vies) et de lignes (2 vies) de l'indice,
+    // et de cases sur le plus grand côté de la silhouette pixelisée (1 vie)
     private int sections = 12;
     private int nombreQuestions = 10;
     private boolean indiceTypes = false;
