@@ -33,26 +33,36 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   double-clic sur `lancer.cmd` (compile sans les tests puis lance `javaw -jar`), ou `java -jar target\pokedex-1.0-SNAPSHOT.jar`.
   Si le nom du jar change, le changer aussi dans `lancer.cmd`.
 - Tests de l'interface : lancer le jar **depuis un dossier temporaire** (pour ne pas créer `cache/` ni
-  `parametres.properties` dans le projet ; y copier un `cache/pokedex.csv` existant évite de tout re-télécharger),
+  `parametres.properties` dans le projet ; y copier un `cache/pokedex.csv` **au format actuel** et `cache/sprites/`
+  évite de tout re-télécharger : un CSV à l'ancien en-tête se convertit en gardant les colonnes 1 à 5 et `image`),
   peindre le `JRootPane` dans un PNG avec `SwingUtilities.invokeAndWait`, puis regarder l'image.
   La fenêtre s'ouvre brièvement sur l'écran. Ne pas faire biper l'appli (champ désactivé, dernière génération décochée).
 
 ## Architecture (`src/main/java/fr/sdv/pokedex/`)
 
 - `Main` : `main` crée la `FenetrePokedex` dans le thread de Swing (`SwingUtilities.invokeLater`) avec l'apparence Windows.
-- `FenetrePokedex` (`extends JFrame`) : onglets Pokédex / Quiz / Paramètres, barre d'état et barre de progression.
-  `chargerPokemons()` démarre un `ChargementPokedex`.
+- `FenetrePokedex` (`extends JFrame`) : onglets Pokédex (`PanneauPokedex`) / Quiz / Paramètres, barre d'état et
+  barre de progression. `chargerPokemons()` démarre un `ChargementPokedex`.
 - `ChargementPokedex` (`extends Thread`) : lit `cache/pokedex.csv` (`CachePokedex`), sinon télécharge les Pokémon
   **un par un** avec `ApiPokemon` (progression envoyée à la fenêtre), puis charge une par une les images du tableau
   (`CacheImages`). La fenêtre n'est modifiée que via `SwingUtilities.invokeLater`.
 - `ApiPokemon` : appels HTTP à PokéAPI (`HttpURLConnection`, gzip, 3 essais), JSON lu avec Jackson
   (`ObjectMapper.readTree`, `path(...)`, `asText()`, `asInt()`).
-- `CachePokedex` : lecture et écriture de `cache/pokedex.csv`. Changer l'en-tête (`EN_TETE`) quand le format change :
-  l'ancien fichier est alors ignoré et tout est re-téléchargé.
+- `CachePokedex` : lecture et écriture de `cache/pokedex.csv`, en-tête `id;nom;nom_anglais;generation;types;image`
+  (types séparés par `/`, image vide si le Pokémon n'en a pas). Changer l'en-tête (`EN_TETE`) quand le format change :
+  l'ancien fichier est alors ignoré et tout est re-téléchargé une fois (les sprites de `cache/sprites/` restent valables).
+  La taille, le poids et les statistiques ont été retirés de l'appli (classe `Pokemon`, API, CSV, tableau).
 - `CacheImages` : sprites 96 × 96 dans `cache/sprites/{id}.png` (`chargerImage` est `synchronized`, renvoie `null`
   si l'image est indisponible), icônes du tableau (`HashMap`, utilisée seulement dans le thread de Swing).
-- `Pokemon` (attributs privés, getters/setters), `ModeleTableau` (`AbstractTableModel` du tableau ;
-  `getColumnClass` renvoie `Class` sans `<?>`, comme dans le tutoriel Swing d'Oracle).
+- `Pokemon` (attributs privés, getters/setters : numéro, noms français et anglais, génération, types, image).
+- Onglet Pokédex : `PanneauPokedex` (barre « Recherche : », listes `JComboBox<String>` « Génération : » et « Type : »,
+  bouton « Réinitialiser », compteur ; colonnes N°, Image, Nom, Nom anglais, Gén., Type(s), triables par clic
+  sur l'en-tête avec un `TableRowSorter`, sauf l'image). `FiltrePokedex` (logique sans Swing : `accepte(pokemon)`,
+  nom français ou anglais qui **contient** le texte normalisé par `Suggestions.normaliser`, ou numéro si le texte
+  est un nombre ; génération 0 = toutes, type vide = tous ; `TYPES` = les 18 types dans l'ordre alphabétique ;
+  `texteCompteur`). `ModeleTableau` (`AbstractTableModel` : liste complète + liste filtrée refaite par une boucle à
+  chaque changement, puis `fireTableDataChanged()` ; pas de `RowFilter` ; `getColumnClass` renvoie `Class` sans `<?>`,
+  comme dans le tutoriel Swing d'Oracle).
 - Quiz : l'indice dépend des vies restantes. `PartieQuiz.getIndice()` vaut `INDICE_COLONNES` à 3 vies,
   `INDICE_LIGNES` à 2 vies, `INDICE_SILHOUETTE` à 1 vie (et à 0 : la silhouette reste à côté du Pokémon dévoilé).
   Colonnes et lignes ont le même nombre de sections : le réglage `sections` (12 par défaut), sans doublement.
@@ -82,7 +92,8 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
 
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
-- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest` (16 tests : 4 + 4 + 3 + 5).
+- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest`, `FiltrePokedexTest`, `CachePokedexTest`
+  (28 tests : 4 + 4 + 3 + 5 + 10 + 2 ; `CachePokedexTest` écrit dans un dossier `@TempDir` de JUnit).
 - Écrits simplement, comme en cours : `assertEquals`, `assertTrue`, `assertFalse`.
 - Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes.
 - Les tests sont dans le même paquet que le code.
@@ -116,7 +127,9 @@ en cours (classes avec getters/setters, `ArrayList`, `HashMap`).
   plutôt que d'utiliser un caractère.
 - PokéAPI demande de mettre les données en cache : ne pas re-télécharger ce qui est déjà dans `cache/`.
 - `cache/` et `parametres.properties` sont locaux et ignorés par git. Garder leur format compatible
-  (même en-tête CSV, mêmes clés) pour que les fichiers existants restent lisibles.
+  (même en-tête CSV, mêmes clés) pour que les fichiers existants restent lisibles. Exception décidée avec
+  l'utilisateur : l'en-tête du CSV a changé quand les statistiques ont été retirées (un ancien fichier est
+  re-téléchargé une fois).
 - Mise en forme : `.editorconfig` (UTF-8, 4 espaces pour le Java, 2 pour XML, YAML et Markdown).
 
 ## Façon de travailler

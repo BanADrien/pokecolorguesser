@@ -4,31 +4,46 @@ import javax.swing.Icon;
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 
-// Le contenu du tableau du Pokédex : une ligne par Pokémon
+// Le contenu du tableau du Pokédex : une ligne par Pokémon qui passe la recherche et les filtres
 public class ModeleTableau extends AbstractTableModel {
 
     public static final int COLONNE_IMAGE = 1;
 
-    private static final String[] COLONNES = {
-            "N°", "Image", "Nom", "Nom anglais", "Gén.", "Type(s)", "Taille (m)", "Poids (kg)",
-            "PV", "Attaque", "Défense", "Atq. Spé.", "Déf. Spé.", "Vitesse", "Total"
-    };
+    private static final String[] COLONNES = {"N°", "Image", "Nom", "Nom anglais", "Gén.", "Type(s)"};
 
     private CacheImages images;
-    private ArrayList<Pokemon> pokemons = new ArrayList<>();
+    private FiltrePokedex filtre = new FiltrePokedex();
+    private ArrayList<Pokemon> tousLesPokemons = new ArrayList<>();
+    private ArrayList<Pokemon> pokemonsAffiches = new ArrayList<>(); // ceux qui passent le filtre
 
     public ModeleTableau(CacheImages images) {
         this.images = images;
     }
 
     public void setPokemons(ArrayList<Pokemon> pokemons) {
-        this.pokemons = pokemons;
+        tousLesPokemons = pokemons;
+        mettreAJourListe();
+    }
+
+    public void setFiltre(FiltrePokedex filtre) {
+        this.filtre = filtre;
+        mettreAJourListe();
+    }
+
+    // la liste des Pokémon affichés est refaite à chaque changement de la recherche ou des filtres
+    private void mettreAJourListe() {
+        pokemonsAffiches = new ArrayList<>();
+        for (Pokemon pokemon : tousLesPokemons) {
+            if (filtre.accepte(pokemon)) {
+                pokemonsAffiches.add(pokemon);
+            }
+        }
         fireTableDataChanged();
     }
 
     @Override
     public int getRowCount() {
-        return pokemons.size();
+        return pokemonsAffiches.size();
     }
 
     @Override
@@ -47,18 +62,15 @@ public class ModeleTableau extends AbstractTableModel {
         if (colonne == COLONNE_IMAGE) {
             return Icon.class;
         }
-        if (colonne == 2 || colonne == 3 || colonne == 5) {
-            return String.class;
+        if (colonne == 0 || colonne == 4) {
+            return Integer.class;
         }
-        if (colonne == 6 || colonne == 7) {
-            return Double.class;
-        }
-        return Integer.class;
+        return String.class;
     }
 
     @Override
     public Object getValueAt(int ligne, int colonne) {
-        Pokemon pokemon = pokemons.get(ligne);
+        Pokemon pokemon = pokemonsAffiches.get(ligne);
         switch (colonne) {
             case 0:
                 return pokemon.getId();
@@ -70,26 +82,8 @@ public class ModeleTableau extends AbstractTableModel {
                 return pokemon.getNomAnglais();
             case 4:
                 return pokemon.getGeneration();
-            case 5:
-                return pokemon.getTypesTexte();
-            case 6:
-                return pokemon.getTaille();
-            case 7:
-                return pokemon.getPoids();
-            case 8:
-                return pokemon.getPv();
-            case 9:
-                return pokemon.getAttaque();
-            case 10:
-                return pokemon.getDefense();
-            case 11:
-                return pokemon.getAttaqueSpeciale();
-            case 12:
-                return pokemon.getDefenseSpeciale();
-            case 13:
-                return pokemon.getVitesse();
             default:
-                return pokemon.getTotal();
+                return pokemon.getTypesTexte();
         }
     }
 }
