@@ -26,5 +26,14 @@ if errorlevel 1 (
 )
 
 echo Ouverture de l'application...
+rem on lance une copie du jar, pour que la prochaine compilation puisse remplacer celui de target
+set "COPIE=%TEMP%\pokedex\pokedex.jar"
+if not exist "%TEMP%\pokedex" mkdir "%TEMP%\pokedex"
+copy /y "%JAR%" "%COPIE%" >nul 2>&1
+if errorlevel 1 (
+    echo L'application est déjà ouverte : ferme-la avant de la relancer.
+    pause
+    exit /b 1
+)
 rem /d : l'appli tourne depuis la racine du projet, où sont cache\ et parametres.properties
-start "" /d "%~dp0." "%JAVA_HOME%\bin\javaw.exe" -jar "%JAR%"
+start "" /d "%~dp0." "%JAVA_HOME%\bin\javaw.exe" -jar "%COPIE%"

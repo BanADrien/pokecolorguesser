@@ -1,6 +1,11 @@
 package fr.sdv.pokedex;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,7 +16,7 @@ class ParametresTest {
     @Test
     void sectionsEtQuestionsRestentDansLesBornes() {
         Parametres parametres = new Parametres();
-        assertEquals(8, parametres.getSections());
+        assertEquals(12, parametres.getSections());
         assertEquals(10, parametres.getNombreQuestions());
 
         parametres.setSections(0);
@@ -41,5 +46,26 @@ class ParametresTest {
         assertTrue(parametres.setGenerationCochee(2, true));
         assertTrue(parametres.setGenerationCochee(8, false));
         assertFalse(parametres.isGenerationCochee(8));
+    }
+
+    @Test
+    void uneAncienneCleSensEstIgnoree(@TempDir Path dossier) throws IOException {
+        Path fichier = dossier.resolve("parametres.properties");
+        // un fichier d'une ancienne version, avec le sens des bandes
+        Files.writeString(fichier, "sections=7\nsens=vertical\nquestions=5\n");
+
+        Parametres parametres = Parametres.charger(fichier);
+        assertEquals(7, parametres.getSections());
+        assertEquals(5, parametres.getNombreQuestions());
+
+        // une fois enregistré, le fichier n'a plus la clé
+        parametres.enregistrer(fichier);
+        String texte = Files.readString(fichier);
+        assertTrue(texte.contains("sections=7"));
+        assertFalse(texte.contains("sens="));
+
+        // sans la clé sections : 12 par défaut
+        Files.writeString(fichier, "sens=auto\nquestions=10\n");
+        assertEquals(12, Parametres.charger(fichier).getSections());
     }
 }

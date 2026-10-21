@@ -8,6 +8,10 @@ public class PartieQuiz {
 
     // le nombre d'essais pour chaque Pokémon
     public static final int VIES = 3;
+    // l'indice montré pendant une question, selon les vies qui restent
+    public static final String INDICE_COLONNES = "colonnes";
+    public static final String INDICE_LIGNES = "lignes";
+    public static final String INDICE_SILHOUETTE = "silhouette";
 
     private ArrayList<Pokemon> questions = new ArrayList<>();
     private ArrayList<Pokemon> mauvaisesReponses = new ArrayList<>(); // pour la question en cours
@@ -62,13 +66,14 @@ public class PartieQuiz {
         return numeroQuestion == questions.size();
     }
 
-    // le nombre de bandes à montrer : celui des réglages, doublé à chaque vie perdue (8, puis 16, puis 32)
-    public int nombreDeBandes(int bandesDeDepart) {
-        int bandes = bandesDeDepart;
-        for (int i = vies; i < VIES; i++) {
-            bandes = bandes * 2;
+    // 3 vies : des colonnes, 2 vies : des lignes, 1 vie : la silhouette (elle reste quand la question est perdue)
+    public String getIndice() {
+        if (vies >= 3) {
+            return INDICE_COLONNES;
+        } else if (vies == 2) {
+            return INDICE_LIGNES;
         }
-        return bandes;
+        return INDICE_SILHOUETTE;
     }
 
     // renvoie true si c'est le bon Pokémon ; sinon une vie est perdue

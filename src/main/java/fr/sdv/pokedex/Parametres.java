@@ -17,7 +17,8 @@ public class Parametres {
     public static final int QUESTIONS_MIN = 1;
     public static final int QUESTIONS_MAX = 50;
 
-    private int sections = 8;
+    // le nombre de colonnes (3 vies) et de lignes (2 vies) de l'indice
+    private int sections = 12;
     private int nombreQuestions = 10;
     private boolean indiceTypes = false;
     private boolean ignorerContoursNoirs = true;
@@ -136,7 +137,7 @@ public class Parametres {
         }
         parametres.setSections(lireNombre(proprietes.getProperty("sections"), parametres.sections));
         parametres.setNombreQuestions(lireNombre(proprietes.getProperty("questions"), parametres.nombreQuestions));
-        // l'ancienne clé "mode" (QCM ou saisie libre) n'existe plus : elle est ignorée
+        // anciennes clés ignorées : "mode" (QCM ou saisie libre) et "sens" (des bandes)
         parametres.setIndiceTypes(Boolean.parseBoolean(proprietes.getProperty("indiceTypes")));
         // clé absente des anciens fichiers : on garde alors true
         parametres.setIgnorerContoursNoirs(Boolean.parseBoolean(proprietes.getProperty("ignorerContoursNoirs", "true")));

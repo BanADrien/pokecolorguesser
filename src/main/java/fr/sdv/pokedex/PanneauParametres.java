@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Random;
 
-// L'onglet Paramètres : les réglages du quiz, enregistrés à chaque changement, et un aperçu des bandes
+// L'onglet Paramètres : les réglages du quiz, enregistrés à chaque changement, et un aperçu des indices
 public class PanneauParametres extends JPanel {
 
     private static final int NUMERO_PIKACHU = 25;
@@ -95,7 +95,7 @@ public class PanneauParametres extends JPanel {
 
     private JPanel creerCadreQuiz() {
         choixSections = creerChoixNombre(parametres.getSections(), Parametres.SECTIONS_MIN, Parametres.SECTIONS_MAX);
-        choixSections.setToolTipText("Nombre de bandes de couleur horizontales");
+        choixSections.setToolTipText("Nombre de colonnes (3 vies), puis de lignes (2 vies) de l'indice");
         choixSections.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
@@ -197,7 +197,8 @@ public class PanneauParametres extends JPanel {
     }
 
     private JPanel creerApercu() {
-        JLabel explication = new JLabel("Ce que montre le quiz avec ces réglages (ici avec la réponse dévoilée) :");
+        JLabel explication = new JLabel("L'indice du quiz avec ces réglages, selon les vies qui restent, "
+                + "puis la réponse :");
         labelExemple.setFont(labelExemple.getFont().deriveFont(Font.BOLD));
         JPanel bas = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
         bas.add(labelExemple);
@@ -307,11 +308,19 @@ public class PanneauParametres extends JPanel {
         }
     }
 
-    // le découpage est rapide (image de 96 × 96) : on le refait à chaque changement de réglage
+    // Les trois indices d'une question et la réponse. Le calcul est rapide (image de 96 × 96) :
+    // on le refait à chaque changement de réglage.
     private void mettreAJourApercu() {
         if (imageExemple != null) {
-            Bandes bandes = new Bandes(imageExemple, parametres.getSections(), parametres.isIgnorerContoursNoirs());
-            apercu.afficher(bandes, imageExemple, true);
+            int sections = parametres.getSections();
+            boolean contours = parametres.isIgnorerContoursNoirs();
+            Bandes colonnes = new Bandes(imageExemple, sections, contours, true);
+            Bandes lignes = new Bandes(imageExemple, sections, contours, false);
+            apercu.nouvellesCases(imageExemple);
+            apercu.ajouterBandes(colonnes, "3 vies : " + PanneauBandes.decrire(colonnes));
+            apercu.ajouterBandes(lignes, "2 vies : " + PanneauBandes.decrire(lignes));
+            apercu.ajouterImage(Bandes.silhouette(imageExemple), "1 vie : silhouette");
+            apercu.ajouterImage(imageExemple, "Réponse");
         }
     }
 

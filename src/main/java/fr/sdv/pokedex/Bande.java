@@ -2,7 +2,8 @@ package fr.sdv.pokedex;
 
 import java.awt.Color;
 
-// Une bande du quiz : sa place dans l'image (bas et droite exclus) et sa couleur la plus fréquente
+// Une bande du quiz (une ligne horizontale ou une colonne verticale) :
+// sa place dans l'image (bas et droite exclus) et sa couleur la plus fréquente
 public class Bande {
 
     private int haut;
