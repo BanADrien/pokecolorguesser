@@ -68,10 +68,8 @@ public class PanneauQuiz extends JPanel {
     private PartieQuiz partie;              // null tant qu'aucune partie n'a commencé
     private Parametres parametresPartie;    // les réglages copiés au début de la partie
     private Suggestions suggestions = new Suggestions(new ArrayList<>());
-    private BufferedImage imageQuestion;    // gardée pour recalculer les bandes après une erreur
-    private Bandes bandesQuestion;
-    private boolean verticalQuestion;       // le sens des bandes, gardé pour toute la question
-    private boolean enChargement;           // une question est en train de charger
+    private BufferedImage imageQuestion;    // gardée pour calculer le nouvel indice après une erreur
+    private boolean enChargement;          // une question est en train de charger
     private boolean partieTerminee;         // l'écran de fin est affiché
     private int numeroChargement;           // pour ignorer un chargement devenu inutile
 
@@ -263,6 +261,7 @@ public class PanneauQuiz extends JPanel {
         }
         dessin.setMessage("Retrouvez le Pokémon caché derrière ses bandes de couleurs !\n"
                 + "Chaque bande donne sa couleur la plus fréquente et la taille du Pokémon à cet endroit.\n"
+                + "3 vies par Pokémon : d'abord des colonnes, puis des lignes, puis sa silhouette.\n"
                 + "Cliquez sur « Commencer » pour lancer une partie.");
         boutonNouvellePartie.setEnabled(true);
         boutonSuivant.setEnabled(true);
@@ -340,12 +339,8 @@ public class PanneauQuiz extends JPanel {
             return;
         }
         imageQuestion = image;
-        // le sens est choisi une seule fois, avec le nombre de bandes de départ :
-        // il ne change pas quand l'image se précise après une erreur
-        verticalQuestion = parametresPartie.bandesVerticales(imageQuestion);
-        bandesQuestion = calculerBandes();
-        dessin.afficher(bandesQuestion, imageQuestion, false);
-        afficherIndice(pokemon);
+        dessinerIndice();
+        afficherTypes(pokemon);
         activerReponse(true);
         champNom.requestFocusInWindow();
     }
@@ -358,12 +353,23 @@ public class PanneauQuiz extends JPanel {
         apresReponse();
     }
 
-    private Bandes calculerBandes() {
-        int sections = partie.nombreDeBandes(parametresPartie.getSections());
-        return new Bandes(imageQuestion, sections, parametresPartie.isIgnorerContoursNoirs(), verticalQuestion);
+    // L'indice qui correspond aux vies restantes (colonnes, lignes ou silhouette), et la réponse cachée.
+    // L'image est déjà chargée : le calcul est immédiat.
+    private void dessinerIndice() {
+        String indice = partie.getIndice();
+        dessin.nouvellesCases(imageQuestion);
+        if (indice.equals(PartieQuiz.INDICE_SILHOUETTE)) {
+            dessin.ajouterImage(Bandes.silhouette(imageQuestion), "Indice · silhouette");
+        } else {
+            boolean vertical = indice.equals(PartieQuiz.INDICE_COLONNES);
+            Bandes bandes = new Bandes(imageQuestion, parametresPartie.getSections(),
+                    parametresPartie.isIgnorerContoursNoirs(), vertical);
+            dessin.ajouterBandes(bandes, "Indice · " + PanneauBandes.decrire(bandes));
+        }
+        dessin.ajouterImage(null, "Réponse"); // un « ? » jusqu'à la fin de la question
     }
 
-    private void afficherIndice(Pokemon pokemon) {
+    private void afficherTypes(Pokemon pokemon) {
         if (!parametresPartie.isIndiceTypes()) {
             labelIndice.setText(" "); // garde la hauteur de la ligne, pour que rien ne bouge
         } else if (pokemon.getTypes().size() > 1) {
@@ -483,25 +489,16 @@ public class PanneauQuiz extends JPanel {
         }
     }
 
-    // une vie perdue, mais il en reste : l'image devient plus précise et on peut réessayer
+    // une vie perdue, mais il en reste : l'indice change (des lignes, puis la silhouette) et on peut réessayer
     private void afficherErreur(Pokemon mauvais) {
-        int sectionsAvant = bandesQuestion.getNombreSections();
-        // l'image est déjà chargée : le calcul est immédiat
-        bandesQuestion = calculerBandes();
-        dessin.afficher(bandesQuestion, imageQuestion, false);
+        dessinerIndice();
         mettreAJourVies();
 
         String message = "Ce n'est pas " + mauvais.getNom() + "… ";
-        if (partie.getVies() == 1) {
-            message = message + "Plus qu'une vie";
+        if (partie.getIndice().equals(PartieQuiz.INDICE_LIGNES)) {
+            message = message + "Plus que " + partie.getVies() + " vies : voici l'image en lignes.";
         } else {
-            message = message + "Plus que " + partie.getVies() + " vies";
-        }
-        // si l'image n'a pas assez de lignes (ou de colonnes) pour plus de bandes, elle ne change pas
-        if (bandesQuestion.getNombreSections() > sectionsAvant) {
-            message = message + " : l'image est plus précise.";
-        } else {
-            message = message + ".";
+            message = message + "Plus qu'une vie : voici la silhouette.";
         }
         labelResultat.setForeground(ORANGE);
         labelResultat.setText(message);
@@ -554,7 +551,7 @@ public class PanneauQuiz extends JPanel {
             texte = vies + " vies";
         }
         labelVies.setToolTipText(texte + " sur " + PartieQuiz.VIES
-                + " pour ce Pokémon. À chaque erreur, l'image devient plus précise.");
+                + " pour ce Pokémon. À chaque erreur, l'indice change : des lignes, puis la silhouette.");
     }
 
     private void afficherFin() {

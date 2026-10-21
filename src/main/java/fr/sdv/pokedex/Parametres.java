@@ -1,6 +1,5 @@
 package fr.sdv.pokedex;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -17,14 +16,10 @@ public class Parametres {
     public static final int SECTIONS_MAX = 32;
     public static final int QUESTIONS_MIN = 1;
     public static final int QUESTIONS_MAX = 50;
-    // le sens des bandes : choisi pour chaque Pokémon (le plus fidèle à sa forme), ou toujours le même
-    public static final String SENS_AUTO = "auto";
-    public static final String SENS_HORIZONTAL = "horizontal";
-    public static final String SENS_VERTICAL = "vertical";
 
-    private int sections = 8;
+    // le nombre de colonnes (3 vies) et de lignes (2 vies) de l'indice
+    private int sections = 12;
     private int nombreQuestions = 10;
-    private String sens = SENS_AUTO;
     private boolean indiceTypes = false;
     private boolean ignorerContoursNoirs = true;
     // generations[3] vaut true si la génération 3 est cochée (la case 0 ne sert pas)
@@ -62,28 +57,6 @@ public class Parametres {
             nombreQuestions = QUESTIONS_MAX;
         }
         this.nombreQuestions = nombreQuestions;
-    }
-
-    public String getSens() {
-        return sens;
-    }
-
-    // SENS_AUTO, SENS_HORIZONTAL ou SENS_VERTICAL ; une autre valeur donne SENS_AUTO
-    public void setSens(String sens) {
-        if (SENS_HORIZONTAL.equals(sens) || SENS_VERTICAL.equals(sens)) {
-            this.sens = sens;
-        } else {
-            this.sens = SENS_AUTO;
-        }
-    }
-
-    // true si les bandes de cette image sont verticales : le sens choisi, ou en automatique
-    // le plus fidèle à la forme du Pokémon avec le nombre de sections des réglages
-    public boolean bandesVerticales(BufferedImage image) {
-        if (sens.equals(SENS_AUTO)) {
-            return Bandes.verticalPlusFidele(image, sections, ignorerContoursNoirs);
-        }
-        return sens.equals(SENS_VERTICAL);
     }
 
     public boolean isIndiceTypes() {
@@ -142,7 +115,6 @@ public class Parametres {
         Parametres copie = new Parametres();
         copie.sections = sections;
         copie.nombreQuestions = nombreQuestions;
-        copie.sens = sens;
         copie.indiceTypes = indiceTypes;
         copie.ignorerContoursNoirs = ignorerContoursNoirs;
         for (int generation = 1; generation <= Pokemon.DERNIERE_GENERATION; generation++) {
@@ -165,9 +137,7 @@ public class Parametres {
         }
         parametres.setSections(lireNombre(proprietes.getProperty("sections"), parametres.sections));
         parametres.setNombreQuestions(lireNombre(proprietes.getProperty("questions"), parametres.nombreQuestions));
-        // clé absente des anciens fichiers, ou valeur inconnue : automatique
-        parametres.setSens(proprietes.getProperty("sens"));
-        // l'ancienne clé "mode" (QCM ou saisie libre) n'existe plus : elle est ignorée
+        // anciennes clés ignorées : "mode" (QCM ou saisie libre) et "sens" (des bandes)
         parametres.setIndiceTypes(Boolean.parseBoolean(proprietes.getProperty("indiceTypes")));
         // clé absente des anciens fichiers : on garde alors true
         parametres.setIgnorerContoursNoirs(Boolean.parseBoolean(proprietes.getProperty("ignorerContoursNoirs", "true")));
@@ -195,7 +165,6 @@ public class Parametres {
         Properties proprietes = new Properties();
         proprietes.setProperty("sections", String.valueOf(sections));
         proprietes.setProperty("questions", String.valueOf(nombreQuestions));
-        proprietes.setProperty("sens", sens);
         proprietes.setProperty("indiceTypes", String.valueOf(indiceTypes));
         proprietes.setProperty("ignorerContoursNoirs", String.valueOf(ignorerContoursNoirs));
         proprietes.setProperty("generations", texteGenerations());

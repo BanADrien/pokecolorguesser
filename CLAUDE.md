@@ -1,7 +1,7 @@
 # Pokédex Java (cours SDV)
 
 Application Java Swing : un Pokédex (tableau des Pokémon des générations 1 à 8 récupérés sur PokéAPI),
-un quiz « deviner le Pokémon à partir de ses bandes de couleurs » et une page de paramètres.
+un quiz « deviner le Pokémon à partir de ses bandes de couleurs, puis de sa silhouette » et une page de paramètres.
 `README.md` : la documentation pour l'utilisateur (à garder à jour).
 
 ## Environnement
@@ -53,31 +53,36 @@ $env:JAVA_HOME = "C:\Users\adrie\.jdks\openjdk-27"
   si l'image est indisponible), icônes du tableau (`HashMap`, utilisée seulement dans le thread de Swing).
 - `Pokemon` (attributs privés, getters/setters), `ModeleTableau` (`AbstractTableModel` du tableau ;
   `getColumnClass` renvoie `Class` sans `<?>`, comme dans le tutoriel Swing d'Oracle).
-- Quiz : `Bandes` et `Bande` (bandes horizontales ou verticales selon le paramètre `vertical` du constructeur :
-  couleur la plus fréquente de chaque section, contours presque noirs ignorés en option ; une bande horizontale
-  va du pixel visible le plus à gauche au plus à droite de sa section, une colonne verticale du plus haut au plus bas ;
-  nombre de sections plafonné à la hauteur visible, ou à la largeur visible en vertical).
-  `getVide()` = 1 − pixels visibles / surface des rectangles ; `Bandes.verticalPlusFidele(image, sections, contours)`
-  compare les deux sens (à égalité : horizontal).
-  `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon,
-  `nombreDeBandes(base)` double les bandes à chaque vie perdue), `Suggestions` (autocomplétion : préfixe du nom
-  français ou anglais normalisé par `normaliser`, français d'abord, puis anglais, tri `Collator` français,
-  sans les Pokémon déjà proposés à tort), `Parametres` (réglages, fichier `parametres.properties` avec les clés
-  `sections`, `questions`, `sens`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ; une ancienne clé `mode`
-  est ignorée ; `sens` vaut `auto` (défaut), `horizontal` ou `vertical`, une valeur absente ou inconnue donne `auto` ;
-  `bandesVerticales(image)` = le sens choisi, ou en automatique le plus fidèle avec `sections` ;
-  `pokemonsDuQuiz(...)` = Pokémon des générations cochées).
-- Dans `PanneauQuiz`, le sens est choisi une seule fois par question (`verticalQuestion`, avec le nombre de sections
-  de départ) et gardé quand le nombre de bandes double après une erreur.
-- Interface du quiz : `PanneauQuiz`, `PanneauParametres` (le sens des bandes : trois `JRadioButton` dans un
-  `ButtonGroup`), `PanneauBandes` (les deux cases dessinées, légende « Indice · 16 bandes verticales »),
+- Quiz : l'indice dépend des vies restantes. `PartieQuiz.getIndice()` vaut `INDICE_COLONNES` à 3 vies,
+  `INDICE_LIGNES` à 2 vies, `INDICE_SILHOUETTE` à 1 vie (et à 0 : la silhouette reste à côté du Pokémon dévoilé).
+  Colonnes et lignes ont le même nombre de sections : le réglage `sections` (12 par défaut), sans doublement.
+- `Bandes` et `Bande` (colonnes verticales ou lignes horizontales selon le paramètre `vertical` du constructeur :
+  couleur la plus fréquente de chaque section, contours presque noirs ignorés en option ; une colonne va du pixel
+  visible le plus haut au plus bas de sa section, une ligne du plus à gauche au plus à droite ; nombre de sections
+  plafonné à la largeur visible pour les colonnes, à la hauteur visible pour les lignes).
+  `Bandes.silhouette(image)` : image de même taille, pixels visibles (même seuil d'opacité, 128) en noir, les autres
+  transparents ; l'option des contours ne la change pas. `Bandes.zoneVisible(image)` : rectangle des pixels visibles.
+- `PartieQuiz` (logique sans interface : `VIES` = 3, `repondre` renvoie `true` si c'est le bon Pokémon, `getIndice()`),
+  `Suggestions` (autocomplétion : préfixe du nom français ou anglais normalisé par `normaliser`, français d'abord,
+  puis anglais, tri `Collator` français, sans les Pokémon déjà proposés à tort), `Parametres` (réglages, fichier
+  `parametres.properties` avec les clés `sections`, `questions`, `generations`, `indiceTypes`, `ignorerContoursNoirs` ;
+  les anciennes clés `mode` et `sens` sont ignorées ; `pokemonsDuQuiz(...)` = Pokémon des générations cochées).
+- Dans `PanneauQuiz`, `dessinerIndice()` dessine l'indice de `partie.getIndice()` au début de la question
+  et après chaque erreur (message « Plus que 2 vies : voici l'image en lignes. », puis « Plus qu'une vie : voici
+  la silhouette. »).
+- Interface du quiz : `PanneauQuiz`, `PanneauParametres` (aperçu : les 3 indices et la réponse, recalculés à chaque
+  changement de réglage), `PanneauBandes` (des cases côte à côte avec leur légende : `nouvellesCases(sprite)`, puis
+  `ajouterBandes` ou `ajouterImage` (silhouette, sprite, ou `null` pour un « ? ») ; même échelle entière et même
+  placement dans toutes les cases (centré, posé en bas), donc alignés sur le sprite ; légendes « Indice · 12 colonnes »,
+  « Indice · 12 lignes », « Indice · silhouette » ; les 4 cases de l'aperçu passent sur 2 rangées si elles y sont
+  plus grandes),
   `RenduSuggestion` (ligne de la liste, nom anglais en gris ; la liste est un `JTable` d'une colonne),
   `IconeVies` (cœurs dessinés en Java2D). Le chargement d'une image pour le quiz ou l'aperçu se fait dans un
   `new Thread() { ... }`, avec un numéro de chargement pour ignorer un résultat devenu inutile.
 
 ## Tests (`src/test/java/fr/sdv/pokedex/`, JUnit Jupiter)
 
-- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest` (16 tests).
+- `SuggestionsTest`, `PartieQuizTest`, `ParametresTest`, `BandesTest` (16 tests : 4 + 4 + 3 + 5).
 - Écrits simplement, comme en cours : `assertEquals`, `assertTrue`, `assertFalse`.
 - Jamais de réseau ni de fenêtre : `BufferedImage` dessinées à la main pour les bandes.
 - Les tests sont dans le même paquet que le code.

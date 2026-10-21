@@ -12,13 +12,14 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 
-// Deux cases côte à côte : à gauche les bandes de couleurs (l'indice, en bandes horizontales ou verticales),
-// à droite un « ? » ou le vrai Pokémon.
-// Les deux cases utilisent la même échelle, pour que les pixels restent nets et bien alignés.
+// Des cases côte à côte, chacune avec sa légende : des bandes de couleurs, la silhouette, le vrai Pokémon
+// ou un « ? ». Le quiz montre l'indice et la réponse, les paramètres les trois indices et la réponse.
+// Toutes les cases utilisent la même échelle, pour que les pixels restent nets et bien alignés.
 public class PanneauBandes extends JPanel {
 
-    private static final int ESPACE = 24;         // entre les deux cases
+    private static final int ESPACE = 16;         // entre deux cases
     private static final int MARGE = 8;           // à l'intérieur des cases
     private static final int ESPACE_LEGENDE = 4;  // entre une case et sa légende
     private static final Color FOND_CASE = new Color(246, 246, 246);
@@ -27,33 +28,69 @@ public class PanneauBandes extends JPanel {
     private static final Color GRIS_LEGENDE = new Color(110, 110, 110);
     private static final Color GRIS_MESSAGE = new Color(70, 70, 70);
 
-    private Bandes bandes;
-    private BufferedImage image;
-    private boolean imageVisible;
+    private BufferedImage image;      // le sprite du Pokémon
+    private Rectangle zoneVisible;    // le rectangle de ses pixels visibles
+    // le contenu de chaque case, de gauche à droite : des bandes, ou une image (null pour un « ? »)
+    private ArrayList<Bandes> bandesDesCases = new ArrayList<>();
+    private ArrayList<BufferedImage> imagesDesCases = new ArrayList<>();
+    private ArrayList<String> legendes = new ArrayList<>();
     private String message;
 
     public PanneauBandes() {
         setPreferredSize(new Dimension(640, 320));
     }
 
-    // les bandes d'un Pokémon ; l'image n'est dessinée que si imageVisible vaut true
-    public void afficher(Bandes bandes, BufferedImage image, boolean imageVisible) {
-        this.bandes = bandes;
+    // enlève toutes les cases : les suivantes montreront ce Pokémon
+    public void nouvellesCases(BufferedImage image) {
         this.image = image;
-        this.imageVisible = imageVisible;
-        this.message = null;
+        zoneVisible = Bandes.zoneVisible(image);
+        bandesDesCases.clear();
+        imagesDesCases.clear();
+        legendes.clear();
+        message = null;
         repaint();
     }
 
-    public void montrerImage() {
-        imageVisible = true;
+    public void ajouterBandes(Bandes bandes, String legende) {
+        bandesDesCases.add(bandes);
+        imagesDesCases.add(null);
+        legendes.add(legende);
         repaint();
+    }
+
+    // une case avec une image de la taille du sprite (le sprite ou sa silhouette) ; null : un « ? »
+    public void ajouterImage(BufferedImage dessin, String legende) {
+        bandesDesCases.add(null);
+        imagesDesCases.add(dessin);
+        legendes.add(legende);
+        repaint();
+    }
+
+    // la dernière case (la réponse) montre le vrai Pokémon
+    public void montrerImage() {
+        if (!imagesDesCases.isEmpty()) {
+            imagesDesCases.set(imagesDesCases.size() - 1, image);
+            repaint();
+        }
     }
 
     // un texte centré à la place des cases (une ligne par \n)
     public void setMessage(String message) {
         this.message = message;
         repaint();
+    }
+
+    // "12 colonnes" ou "1 ligne", pour les légendes
+    public static String decrire(Bandes bandes) {
+        int sections = bandes.getNombreSections();
+        String nom = "ligne";
+        if (bandes.isVertical()) {
+            nom = "colonne";
+        }
+        if (sections > 1) {
+            return sections + " " + nom + "s";
+        }
+        return sections + " " + nom;
     }
 
     @Override
@@ -66,7 +103,7 @@ public class PanneauBandes extends JPanel {
                 getWidth() - bords.left - bords.right, getHeight() - bords.top - bords.bottom);
         if (message != null) {
             dessinerMessage(g, zone);
-        } else if (bandes != null) {
+        } else if (!legendes.isEmpty()) {
             dessinerCases(g, zone);
         }
     }
@@ -87,51 +124,50 @@ public class PanneauBandes extends JPanel {
     private void dessinerCases(Graphics2D g, Rectangle zone) {
         FontMetrics mesures = g.getFontMetrics(getFont());
         int hauteurLegende = ESPACE_LEGENDE + mesures.getHeight();
+        int nombre = legendes.size();
 
-        // la plus grande échelle entière qui fait tenir les deux cases et leurs légendes
-        int largeurImage = bandes.getLargeurImage();
-        int hauteurImage = bandes.getHauteurImage();
-        int echelleX = (zone.width - ESPACE - 4 * MARGE) / (2 * largeurImage);
-        int echelleY = (zone.height - hauteurLegende - 2 * MARGE) / hauteurImage;
-        int echelle = Math.max(1, Math.min(echelleX, echelleY));
-
-        int largeurCase = largeurImage * echelle + 2 * MARGE;
-        int hauteurCase = hauteurImage * echelle + 2 * MARGE;
-        int gauche = zone.x + (zone.width - (2 * largeurCase + ESPACE)) / 2;
-        int haut = zone.y + (zone.height - (hauteurCase + hauteurLegende)) / 2;
-        int droite = gauche + largeurCase + ESPACE;
-
-        dessinerCase(g, gauche, haut, largeurCase, hauteurCase);
-        dessinerBandes(g, gauche + MARGE, haut + MARGE, echelle);
-
-        dessinerCase(g, droite, haut, largeurCase, hauteurCase);
-        if (imageVisible && image != null) {
-            dessinerImage(g, droite + MARGE, haut + MARGE, echelle);
-        } else {
-            dessinerPointInterrogation(g, droite, haut, largeurCase, hauteurCase);
+        // les cases sur une seule rangée ; les 4 cases de l'aperçu passent sur 2 rangées si elles y sont plus grandes
+        int parRangee = nombre;
+        int rangees = 1;
+        int echelle = calculerEchelle(zone, nombre, 1, hauteurLegende);
+        if (nombre == 4 && calculerEchelle(zone, 2, 2, hauteurLegende) > echelle) {
+            parRangee = 2;
+            rangees = 2;
+            echelle = calculerEchelle(zone, 2, 2, hauteurLegende);
         }
 
-        g.setFont(getFont());
-        g.setColor(GRIS_LEGENDE);
-        int yLegende = haut + hauteurCase + ESPACE_LEGENDE + mesures.getAscent();
-        String indice = legendeIndice();
-        g.drawString(indice, gauche + (largeurCase - mesures.stringWidth(indice)) / 2, yLegende);
-        g.drawString("Réponse", droite + (largeurCase - mesures.stringWidth("Réponse")) / 2, yLegende);
+        int largeurCase = image.getWidth() * echelle + 2 * MARGE;
+        int hauteurCase = image.getHeight() * echelle + 2 * MARGE;
+        int hauteurRangee = hauteurCase + hauteurLegende + ESPACE;
+        int gauche = zone.x + (zone.width - (parRangee * largeurCase + (parRangee - 1) * ESPACE)) / 2;
+        int haut = zone.y + (zone.height - (rangees * hauteurRangee - ESPACE)) / 2;
+
+        for (int i = 0; i < nombre; i++) {
+            int x = gauche + (i % parRangee) * (largeurCase + ESPACE);
+            int y = haut + (i / parRangee) * hauteurRangee;
+            dessinerCase(g, x, y, largeurCase, hauteurCase);
+            if (bandesDesCases.get(i) != null) {
+                dessinerBandes(g, bandesDesCases.get(i), x + MARGE, y + MARGE, echelle);
+            } else if (imagesDesCases.get(i) != null) {
+                dessinerImage(g, imagesDesCases.get(i), x + MARGE, y + MARGE, echelle);
+            } else {
+                dessinerPointInterrogation(g, x, y, largeurCase, hauteurCase);
+            }
+            String legende = legendes.get(i);
+            g.setFont(getFont());
+            g.setColor(GRIS_LEGENDE);
+            g.drawString(legende, x + (largeurCase - mesures.stringWidth(legende)) / 2,
+                    y + hauteurCase + ESPACE_LEGENDE + mesures.getAscent());
+        }
     }
 
-    // "Indice · 16 bandes verticales" : dans le quiz, le nombre de bandes change quand on perd une vie
-    private String legendeIndice() {
-        int sections = bandes.getNombreSections();
-        String sens = "horizontale";
-        if (bandes.isVertical()) {
-            sens = "verticale";
-        }
-        if (sections == 0) {
-            return "Indice";
-        } else if (sections == 1) {
-            return "Indice · 1 bande " + sens;
-        }
-        return "Indice · " + sections + " bandes " + sens + "s";
+    // la plus grande échelle entière qui fait tenir les cases et leurs légendes (au moins 1)
+    private int calculerEchelle(Rectangle zone, int parRangee, int rangees, int hauteurLegende) {
+        int largeurLibre = zone.width - (parRangee - 1) * ESPACE - parRangee * 2 * MARGE;
+        int hauteurLibre = zone.height - (rangees - 1) * ESPACE - rangees * (hauteurLegende + 2 * MARGE);
+        int echelleX = largeurLibre / (parRangee * image.getWidth());
+        int echelleY = hauteurLibre / (rangees * image.getHeight());
+        return Math.max(1, Math.min(echelleX, echelleY));
     }
 
     private void dessinerCase(Graphics2D g, int x, int y, int largeur, int hauteur) {
@@ -142,18 +178,16 @@ public class PanneauBandes extends JPanel {
     }
 
     // Le Pokémon est centré en largeur et posé en bas de la case. Le décalage est le même
-    // pour les bandes et pour l'image : les deux dessins se superposent exactement.
+    // dans toutes les cases : les bandes, la silhouette et le sprite se superposent exactement.
     private int decalageX() {
-        Rectangle zone = bandes.getZone();
-        return (bandes.getLargeurImage() - zone.width) / 2 - zone.x;
+        return (image.getWidth() - zoneVisible.width) / 2 - zoneVisible.x;
     }
 
     private int decalageY() {
-        Rectangle zone = bandes.getZone();
-        return bandes.getHauteurImage() - zone.height - zone.y;
+        return image.getHeight() - zoneVisible.height - zoneVisible.y;
     }
 
-    private void dessinerBandes(Graphics2D g, int origineX, int origineY, int echelle) {
+    private void dessinerBandes(Graphics2D g, Bandes bandes, int origineX, int origineY, int echelle) {
         for (Bande bande : bandes.getListe()) {
             int x = origineX + (bande.getGauche() + decalageX()) * echelle;
             int y = origineY + (bande.getHaut() + decalageY()) * echelle;
@@ -161,7 +195,7 @@ public class PanneauBandes extends JPanel {
             int hauteur = (bande.getBas() - bande.getHaut()) * echelle;
             g.setColor(bande.getCouleur());
             g.fillRect(x, y, largeur, hauteur);
-            // sur une bande très fine (ou une colonne très étroite), le bord cacherait la couleur
+            // sur une ligne très fine (ou une colonne très étroite), le bord cacherait la couleur
             if (largeur >= 4 && hauteur >= 4) {
                 g.setColor(bande.getCouleur().darker());
                 g.drawRect(x, y, largeur - 1, hauteur - 1);
@@ -169,13 +203,13 @@ public class PanneauBandes extends JPanel {
         }
     }
 
-    private void dessinerImage(Graphics2D g, int origineX, int origineY, int echelle) {
-        Rectangle zone = bandes.getZone();
+    private void dessinerImage(Graphics2D g, BufferedImage dessin, int origineX, int origineY, int echelle) {
+        Rectangle zone = zoneVisible;
         int x = origineX + (zone.x + decalageX()) * echelle;
         int y = origineY + (zone.y + decalageY()) * echelle;
         // agrandissement « pixel art » : chaque pixel devient un carré net, sans flou
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        g.drawImage(image,
+        g.drawImage(dessin,
                 x, y, x + zone.width * echelle, y + zone.height * echelle,
                 zone.x, zone.y, zone.x + zone.width, zone.y + zone.height,
                 null);

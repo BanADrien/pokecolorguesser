@@ -2,7 +2,7 @@
 
 Application de bureau en Java Swing, réalisée dans le cadre d'un cours à SDV :
 un Pokédex des 905 Pokémon des générations 1 à 8 (données de [PokéAPI](https://pokeapi.co/))
-et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs.
+et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis de sa silhouette.
 
 ![Une question du quiz](docs/images/quiz-question.png)
 
@@ -10,40 +10,40 @@ et un quiz pour retrouver un Pokémon à partir de ses seules bandes de couleurs
 
 - **Pokédex** : un tableau avec l'image de chaque Pokémon, ses noms français et anglais, sa génération,
   ses types, sa taille, son poids et ses statistiques. Un clic sur un en-tête trie la colonne.
-- **Quiz des couleurs** : le sprite d'un Pokémon tiré au hasard est découpé en bandes horizontales
-  ou verticales. Chaque bande montre la couleur la plus fréquente de sa partie de l'image et la place
-  qu'y prend le Pokémon : sa largeur pour une bande horizontale, sa hauteur pour une bande verticale
-  (par défaut, les contours noirs du dessin ne comptent pas dans la couleur).
-  - **Sens des bandes automatique** (par défaut) : pour chaque Pokémon, le quiz calcule les deux découpages
-    et garde le plus fidèle à sa forme, celui dont les rectangles contiennent le moins de vide
-    (à égalité, l'horizontal). Une bande horizontale va d'un bout à l'autre du Pokémon et bouche les trous
-    entre deux ailes ou deux jambes écartées ; des colonnes verticales les laissent voir. Avec 8 bandes,
-    le vertical est choisi pour 407 des 905 Pokémon. Le sens est choisi au début de chaque question
-    et ne change plus quand l'image se précise.
+- **Quiz des couleurs** : il faut retrouver un Pokémon tiré au hasard à partir d'un indice, qui change
+  à chaque erreur. Les deux premiers indices découpent son sprite en bandes : chaque bande montre la couleur
+  la plus fréquente de sa partie de l'image et la place qu'y prend le Pokémon (par défaut, les contours noirs
+  du dessin ne comptent pas dans la couleur).
+  - **3 vies par Pokémon, un indice par vie** :
+    - 3 vies (au départ) : des **colonnes verticales**, 12 par défaut (le réglage « Nombre de sections »),
+      sans dépasser la largeur du Pokémon en pixels ;
+    - 2 vies (après une erreur) : le même nombre de **lignes horizontales**, sans dépasser sa hauteur ;
+    - 1 vie (après deux erreurs) : la **silhouette noire** du Pokémon, à la même taille et à la même place
+      que son sprite ;
+    - à la troisième erreur, ou avec « Passer », le Pokémon est dévoilé.
   - **Réponse avec autocomplétion** : on tape les premières lettres du nom, en français ou en anglais
     (majuscules, accents et ponctuation ne comptent pas). La liste sous le champ ne garde que les Pokémon
     qui commencent ainsi, par exemple « Dracaufeu (Charizard) » pour « chari ». Les Pokémon trouvés
     par leur nom français viennent d'abord, puis ceux trouvés par leur nom anglais, chaque groupe
     dans l'ordre alphabétique. On choisit avec les flèches ↑ ↓ puis Entrée, ou d'un clic.
-  - **3 vies par Pokémon** : une mauvaise réponse coûte une vie (les cœurs au-dessus du champ),
-    le Pokémon proposé disparaît de la liste et l'image devient plus précise : le nombre de bandes double
-    (8, puis 16, puis 32), toujours dans le même sens. À la troisième erreur, ou avec « Passer »,
-    le Pokémon est dévoilé.
+  - Une mauvaise réponse coûte une vie (les cœurs au-dessus du champ) et le Pokémon proposé
+    disparaît de la liste.
   - Le score compte les Pokémon trouvés. Il s'affiche à la fin de la partie.
-- **Paramètres** : nombre de bandes (1 à 32), sens des bandes (automatique, horizontal ou vertical),
-  nombre de questions (1 à 50), contours noirs ignorés ou non, types en indice et générations utilisées
-  par le quiz (la liste des réponses ne propose que ces générations).
-  Un aperçu montre le résultat, et les réglages sont enregistrés automatiquement.
+- **Paramètres** : nombre de sections (1 à 32, 12 par défaut : le nombre de colonnes, puis de lignes),
+  nombre de questions (1 à 50), contours noirs ignorés ou non (pour les colonnes et les lignes),
+  types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
+  Un aperçu montre les trois indices et la réponse, et les réglages sont enregistrés automatiquement.
+  Le sens des bandes ne se règle plus : il dépend des vies qui restent.
 
-| Lugia en 8 bandes verticales (choix automatique) | Le même Pokémon forcé en horizontal : le trou entre les ailes disparaît |
+![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette, puis la réponse](docs/images/indices-3-etapes.png)
+
+| Après une erreur : 2 vies, 12 lignes | Après deux erreurs : 1 vie, la silhouette |
 |---|---|
-| ![Lugia en bandes verticales, à côté de son sprite](docs/images/lugia-vertical.png) | ![Lugia en bandes horizontales, à côté de son sprite](docs/images/lugia-horizontal.png) |
+| ![Après une erreur, l'indice passe en lignes](docs/images/quiz-apres-erreur.png) | ![Après deux erreurs, l'indice est la silhouette](docs/images/quiz-silhouette.png) |
 
-| Après une erreur : 2 vies, 16 bandes | Réponse ratée |
+| Réponse ratée | Onglet Paramètres |
 |---|---|
-| ![Après une erreur, l'image est plus précise](docs/images/quiz-apres-erreur.png) | ![Réponse ratée : le vrai Pokémon est dévoilé](docs/images/quiz-reponse-ratee.png) |
-
-![Onglet Paramètres avec l'aperçu sur Pikachu](docs/images/parametres.png)
+| ![Réponse ratée : le vrai Pokémon est dévoilé à côté de sa silhouette](docs/images/quiz-reponse-ratee.png) | ![Onglet Paramètres avec l'aperçu des trois indices sur Pikachu](docs/images/parametres.png) |
 
 ## Prérequis
 
@@ -101,8 +101,8 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── CacheImages.java            images téléchargées une fois, puis gardées dans cache/sprites/
 │   ├── Pokemon.java                un Pokémon
 │   ├── ModeleTableau.java          contenu du tableau
-│   ├── Bandes.java, Bande.java     découpage d'une image en bandes de couleurs (horizontales ou verticales)
-│   ├── PartieQuiz.java             déroulement d'une partie (vies, score), sans interface graphique
+│   ├── Bandes.java, Bande.java     découpage d'une image en colonnes ou en lignes de couleurs, silhouette
+│   ├── PartieQuiz.java             déroulement d'une partie (vies, indice, score), sans interface graphique
 │   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── Parametres.java             réglages du quiz
 │   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
@@ -120,7 +120,8 @@ et ignorés par Git (voir `.gitignore`) :
   Le premier téléchargement se fait Pokémon par Pokémon et prend quelques minutes (barre de progression en bas).
   Supprimer ce fichier force un nouveau téléchargement.
 - `cache/sprites/` : les images des Pokémon, téléchargées une par une après la liste.
-- `parametres.properties` : les réglages du quiz.
+- `parametres.properties` : les réglages du quiz. Un fichier créé par une ancienne version reste lisible :
+  il garde son nombre de sections (par exemple 8), et l'ancienne clé `sens` est ignorée.
 
 ## Crédits
 

@@ -20,15 +20,6 @@ class BandesTest {
         }
     }
 
-    // un corps de 56 × 20 pixels posé sur deux jambes écartées : un gros trou entre les jambes
-    private BufferedImage deuxJambes() {
-        BufferedImage image = new BufferedImage(96, 96, BufferedImage.TYPE_INT_ARGB);
-        colorier(image, 20, 20, 56, 20, Color.ORANGE);
-        colorier(image, 20, 40, 12, 44, Color.ORANGE);
-        colorier(image, 64, 40, 12, 44, Color.ORANGE);
-        return image;
-    }
-
     @Test
     void chaqueBandeGardeLaCouleurLaPlusFrequenteEtLaLargeur() {
         // une image transparente de 96 × 96, comme un sprite, avec un Pokémon de 40 × 64 pixels
@@ -103,51 +94,47 @@ class BandesTest {
     }
 
     @Test
-    void leVideEstLaPartDesRectanglesSansPixelVisible() {
-        // deux carrés de 10 × 10 sur la même ligne, séparés par un trou de 10 pixels
+    void lesColonnesEtLesLignesOntLeMemeNombreSaufAuDelaDeLaLargeurOuDeLaHauteur() {
+        // un Pokémon de 30 pixels de large et 20 de haut
         BufferedImage image = new BufferedImage(96, 96, BufferedImage.TYPE_INT_ARGB);
-        colorier(image, 10, 10, 10, 10, Color.GREEN);
-        colorier(image, 30, 10, 10, 10, Color.GREEN);
+        colorier(image, 40, 60, 30, 20, Color.MAGENTA);
 
-        // une seule bande horizontale bouche le trou : 200 pixels visibles sur 300
-        assertEquals(1.0 / 3, new Bandes(image, 1, true, false).getVide(), 0.0001);
-        // trois colonnes : celle du milieu est vide, elle n'a pas de bande
-        Bandes colonnes = new Bandes(image, 3, true, true);
-        assertEquals(2, colonnes.getListe().size());
-        assertEquals(0, colonnes.getVide(), 0.0001);
+        // 12 sections : 12 colonnes (3 vies), puis 12 lignes (2 vies)
+        Bandes colonnes = new Bandes(image, 12, true, true);
+        Bandes lignes = new Bandes(image, 12, true, false);
+        assertTrue(colonnes.isVertical());
+        assertFalse(lignes.isVertical());
+        assertEquals(12, colonnes.getNombreSections());
+        assertEquals(12, lignes.getNombreSections());
+        assertEquals(12, lignes.getListe().size());
+
+        // 25 sections : pas plus de lignes que de pixels en hauteur
+        assertEquals(25, new Bandes(image, 25, true, true).getNombreSections());
+        assertEquals(20, new Bandes(image, 25, true, false).getNombreSections());
+        // 32 sections : pas plus de colonnes que de pixels en largeur
+        assertEquals(30, new Bandes(image, 32, true, true).getNombreSections());
     }
 
     @Test
-    void leModeAutomatiqueChoisitLeVerticalPourDeuxJambesSeparees() {
-        BufferedImage image = deuxJambes();
-        Bandes horizontales = new Bandes(image, 8, true, false);
-        Bandes verticales = new Bandes(image, 8, true, true);
-        assertTrue(verticales.getVide() < horizontales.getVide());
-        assertTrue(Bandes.verticalPlusFidele(image, 8, true));
+    void laSilhouetteRendLesPixelsVisiblesNoirs() {
+        // une petite image de 3 × 2 : un pixel rouge, un vert à moitié transparent (encore visible),
+        // un bleu presque transparent (invisible) et trois pixels transparents
+        BufferedImage image = new BufferedImage(3, 2, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, Color.RED.getRGB());
+        image.setRGB(1, 0, new Color(0, 255, 0, 200).getRGB());
+        image.setRGB(2, 1, new Color(0, 0, 255, 50).getRGB());
 
-        // les paramètres : automatique par défaut, sinon le sens choisi
-        Parametres parametres = new Parametres();
-        assertTrue(parametres.bandesVerticales(image));
-        parametres.setSens(Parametres.SENS_HORIZONTAL);
-        assertFalse(parametres.bandesVerticales(image));
-    }
+        BufferedImage silhouette = Bandes.silhouette(image);
 
-    @Test
-    void leModeAutomatiqueGardeLHorizontalQuandCestPlusFidele() {
-        // un « T » : une barre de 56 × 16 pixels sur un pied de 12 pixels de large
-        BufferedImage image = new BufferedImage(96, 96, BufferedImage.TYPE_INT_ARGB);
-        colorier(image, 20, 20, 56, 16, Color.CYAN);
-        colorier(image, 42, 36, 12, 48, Color.CYAN);
-        assertFalse(Bandes.verticalPlusFidele(image, 8, true));
-
-        // un rectangle plein : aucun vide des deux côtés, l'égalité garde l'horizontal
-        BufferedImage rectangle = new BufferedImage(96, 96, BufferedImage.TYPE_INT_ARGB);
-        colorier(rectangle, 30, 30, 40, 40, Color.PINK);
-        assertFalse(Bandes.verticalPlusFidele(rectangle, 8, true));
-
-        // le sens peut aussi être imposé dans les paramètres
-        Parametres parametres = new Parametres();
-        parametres.setSens(Parametres.SENS_VERTICAL);
-        assertTrue(parametres.bandesVerticales(image));
+        assertEquals(3, silhouette.getWidth());
+        assertEquals(2, silhouette.getHeight());
+        assertEquals(Color.BLACK.getRGB(), silhouette.getRGB(0, 0));
+        assertEquals(Color.BLACK.getRGB(), silhouette.getRGB(1, 0));
+        // les pixels invisibles restent vides (complètement transparents)
+        assertEquals(0, silhouette.getRGB(2, 1));
+        assertEquals(0, silhouette.getRGB(2, 0));
+        assertEquals(0, silhouette.getRGB(0, 1));
+        // l'image d'origine ne change pas
+        assertEquals(Color.RED.getRGB(), image.getRGB(0, 0));
     }
 }

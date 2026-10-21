@@ -2,12 +2,10 @@ package fr.sdv.pokedex;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
@@ -31,15 +29,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Random;
 
-// L'onglet Paramètres : les réglages du quiz, enregistrés à chaque changement, et un aperçu des bandes
+// L'onglet Paramètres : les réglages du quiz, enregistrés à chaque changement, et un aperçu des indices
 public class PanneauParametres extends JPanel {
 
     private static final int NUMERO_PIKACHU = 25;
     // la région de chaque génération (case 0 : génération 1)
     private static final String[] REGIONS = {"Kanto", "Johto", "Hoenn", "Sinnoh", "Unys", "Kalos", "Alola", "Galar"};
-    // les choix du sens des bandes, et leur texte dans l'interface
-    private static final String[] SENS = {Parametres.SENS_AUTO, Parametres.SENS_HORIZONTAL, Parametres.SENS_VERTICAL};
-    private static final String[] NOMS_SENS = {"Automatique (le plus fidèle)", "Horizontal", "Vertical"};
 
     private Parametres parametres;
     private Path fichier;
@@ -100,7 +95,7 @@ public class PanneauParametres extends JPanel {
 
     private JPanel creerCadreQuiz() {
         choixSections = creerChoixNombre(parametres.getSections(), Parametres.SECTIONS_MIN, Parametres.SECTIONS_MAX);
-        choixSections.setToolTipText("Nombre de bandes de couleur au début de chaque question");
+        choixSections.setToolTipText("Nombre de colonnes (3 vies), puis de lignes (2 vies) de l'indice");
         choixSections.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
@@ -155,38 +150,11 @@ public class PanneauParametres extends JPanel {
         c.gridy = 2;
         c.gridwidth = 2;
         c.insets = new Insets(8, 0, 0, 0);
-        cadre.add(new JLabel("Sens des bandes :"), c);
-        c.gridy = 3;
-        c.insets = new Insets(0, 8, 0, 0);
-        cadre.add(creerChoixSens(), c);
-        c.gridy = 4;
-        c.insets = new Insets(8, 0, 0, 0);
         cadre.add(caseContours, c);
-        c.gridy = 5;
+        c.gridy = 3;
         c.insets = new Insets(2, 0, 0, 0);
         cadre.add(caseIndiceTypes, c);
         return cadre;
-    }
-
-    // un bouton radio par sens : un seul peut être choisi à la fois
-    private JPanel creerChoixSens() {
-        JPanel choix = new JPanel(new GridLayout(SENS.length, 1));
-        ButtonGroup groupe = new ButtonGroup();
-        for (int i = 0; i < SENS.length; i++) {
-            String sens = SENS[i];
-            JRadioButton bouton = new JRadioButton(NOMS_SENS[i], sens.equals(parametres.getSens()));
-            bouton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    parametres.setSens(sens);
-                    enregistrer();
-                    mettreAJourApercu();
-                }
-            });
-            groupe.add(bouton);
-            choix.add(bouton);
-        }
-        return choix;
     }
 
     private JPanel creerCadreGenerations() {
@@ -229,7 +197,8 @@ public class PanneauParametres extends JPanel {
     }
 
     private JPanel creerApercu() {
-        JLabel explication = new JLabel("Ce que montre le quiz avec ces réglages (ici avec la réponse dévoilée) :");
+        JLabel explication = new JLabel("L'indice du quiz avec ces réglages, selon les vies qui restent, "
+                + "puis la réponse :");
         labelExemple.setFont(labelExemple.getFont().deriveFont(Font.BOLD));
         JPanel bas = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
         bas.add(labelExemple);
@@ -339,13 +308,19 @@ public class PanneauParametres extends JPanel {
         }
     }
 
-    // le découpage est rapide (image de 96 × 96) : on le refait à chaque changement de réglage
+    // Les trois indices d'une question et la réponse. Le calcul est rapide (image de 96 × 96) :
+    // on le refait à chaque changement de réglage.
     private void mettreAJourApercu() {
         if (imageExemple != null) {
-            boolean vertical = parametres.bandesVerticales(imageExemple);
-            Bandes bandes = new Bandes(imageExemple, parametres.getSections(), parametres.isIgnorerContoursNoirs(),
-                    vertical);
-            apercu.afficher(bandes, imageExemple, true);
+            int sections = parametres.getSections();
+            boolean contours = parametres.isIgnorerContoursNoirs();
+            Bandes colonnes = new Bandes(imageExemple, sections, contours, true);
+            Bandes lignes = new Bandes(imageExemple, sections, contours, false);
+            apercu.nouvellesCases(imageExemple);
+            apercu.ajouterBandes(colonnes, "3 vies : " + PanneauBandes.decrire(colonnes));
+            apercu.ajouterBandes(lignes, "2 vies : " + PanneauBandes.decrire(lignes));
+            apercu.ajouterImage(Bandes.silhouette(imageExemple), "1 vie : silhouette");
+            apercu.ajouterImage(imageExemple, "Réponse");
         }
     }
 

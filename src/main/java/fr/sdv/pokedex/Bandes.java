@@ -6,9 +6,10 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-// L'image d'un Pokémon découpée en bandes horizontales (de haut en bas) ou verticales (de gauche à droite).
-// Chaque bande garde la couleur la plus fréquente de sa section et la place qu'y prend le Pokémon :
-// sa largeur pour une bande horizontale, sa hauteur pour une bande verticale.
+// L'image d'un Pokémon découpée en colonnes verticales (de gauche à droite) ou en lignes horizontales
+// (de haut en bas). Chaque bande garde la couleur la plus fréquente de sa section et la place qu'y prend
+// le Pokémon : sa hauteur pour une colonne, sa largeur pour une ligne.
+// La classe donne aussi la silhouette noire du Pokémon, le dernier indice du quiz.
 public class Bandes {
 
     // en dessous de cette opacité (de 0 à 255), un pixel compte comme transparent
@@ -16,19 +17,14 @@ public class Bandes {
     // en dessous de cette luminosité (de 0 à 255), un pixel est presque noir, comme les contours
     private static final int LUMINOSITE_MIN = 50;
 
-    private int largeurImage;
-    private int hauteurImage;
-    private Rectangle zone;
     private boolean vertical;
     private int nombreSections;
     private ArrayList<Bande> liste = new ArrayList<>();
 
     public Bandes(BufferedImage image, int sections, boolean ignorerContoursNoirs, boolean vertical) {
-        largeurImage = image.getWidth();
-        hauteurImage = image.getHeight();
         this.vertical = vertical;
-        zone = zoneVisible(image);
-        // pas plus de sections que de colonnes (ou de lignes) de pixels
+        Rectangle zone = zoneVisible(image);
+        // pas plus de colonnes que la largeur visible, ni de lignes que la hauteur visible
         if (vertical) {
             nombreSections = Math.min(sections, zone.width);
         } else {
@@ -52,32 +48,12 @@ public class Bandes {
         }
     }
 
-    // true si les bandes verticales laissent moins de vide que les horizontales (à égalité : horizontales)
-    public static boolean verticalPlusFidele(BufferedImage image, int sections, boolean ignorerContoursNoirs) {
-        Bandes horizontales = new Bandes(image, sections, ignorerContoursNoirs, false);
-        Bandes verticales = new Bandes(image, sections, ignorerContoursNoirs, true);
-        return verticales.getVide() < horizontales.getVide();
-    }
-
-    // la taille de l'image d'origine (96 × 96) : tous les Pokémon sont dessinés à la même échelle
-    public int getLargeurImage() {
-        return largeurImage;
-    }
-
-    public int getHauteurImage() {
-        return hauteurImage;
-    }
-
-    // le rectangle qui contient les pixels visibles du Pokémon
-    public Rectangle getZone() {
-        return zone;
-    }
-
+    // true pour des colonnes verticales, false pour des lignes horizontales
     public boolean isVertical() {
         return vertical;
     }
 
-    // le nombre de sections demandé, sans dépasser la hauteur (ou la largeur) de la zone
+    // le nombre de sections demandé, sans dépasser la largeur (ou la hauteur) visible
     public int getNombreSections() {
         return nombreSections;
     }
@@ -86,19 +62,44 @@ public class Bandes {
         return liste;
     }
 
-    // La part de vide dans les rectangles des bandes, de 0 (aucun vide) à 1 :
-    // 1 - (pixels visibles recouverts / surface des rectangles). Moins il y a de vide, plus c'est fidèle.
-    public double getVide() {
-        int pixelsVisibles = 0;
-        int surface = 0;
-        for (Bande bande : liste) {
-            pixelsVisibles += bande.getPixelsVisibles();
-            surface += bande.getSurface();
+    // Une image de la même taille : les pixels visibles deviennent noirs, les autres restent transparents
+    public static BufferedImage silhouette(BufferedImage image) {
+        BufferedImage silhouette = new BufferedImage(image.getWidth(), image.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (estVisible(new Color(image.getRGB(x, y), true))) {
+                    silhouette.setRGB(x, y, Color.BLACK.getRGB());
+                }
+            }
         }
-        if (surface == 0) {
-            return 0; // image entièrement transparente
+        return silhouette;
+    }
+
+    // le plus petit rectangle qui contient tous les pixels visibles du Pokémon
+    public static Rectangle zoneVisible(BufferedImage image) {
+        int gauche = image.getWidth();
+        int haut = image.getHeight();
+        int droite = -1;
+        int bas = -1;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (estVisible(new Color(image.getRGB(x, y), true))) {
+                    gauche = Math.min(gauche, x);
+                    haut = Math.min(haut, y);
+                    droite = Math.max(droite, x);
+                    bas = Math.max(bas, y);
+                }
+            }
         }
-        return 1 - (double) pixelsVisibles / surface;
+        if (droite == -1) {
+            return new Rectangle(); // image entièrement transparente
+        }
+        return new Rectangle(gauche, haut, droite - gauche + 1, bas - haut + 1);
+    }
+
+    private static boolean estVisible(Color pixel) {
+        return pixel.getAlpha() >= OPACITE_MIN;
     }
 
     // la bande d'une section (gauche, droite, haut et bas de la section ; droite et bas exclus)
@@ -112,16 +113,14 @@ public class Bandes {
         int haut = image.getHeight();
         int droite = -1;
         int bas = -1;
-        int pixelsVisibles = 0;
         for (int y = hautSection; y < basSection; y++) {
             for (int x = gaucheSection; x < droiteSection; x++) {
                 Color pixel = new Color(image.getRGB(x, y), true);
-                if (pixel.getAlpha() >= OPACITE_MIN) {
+                if (estVisible(pixel)) {
                     compter(groupes, pixel);
                     if (!estSombre(pixel)) {
                         compter(groupesClairs, pixel);
                     }
-                    pixelsVisibles++;
                     gauche = Math.min(gauche, x);
                     droite = Math.max(droite, x);
                     haut = Math.min(haut, y);
@@ -129,19 +128,19 @@ public class Bandes {
                 }
             }
         }
-        if (pixelsVisibles == 0) {
-            return null;
+        if (droite == -1) {
+            return null; // aucun pixel visible dans la section
         }
         // si la bande n'a que des pixels presque noirs, elle reste noire
         if (ignorerContoursNoirs && !groupesClairs.isEmpty()) {
             groupes = groupesClairs;
         }
         Color couleur = couleurLaPlusFrequente(groupes);
-        // une bande verticale garde toute la largeur de sa section, une bande horizontale toute sa hauteur
+        // une colonne garde toute la largeur de sa section, une ligne toute sa hauteur
         if (vertical) {
-            return new Bande(haut, bas + 1, gaucheSection, droiteSection, couleur, pixelsVisibles);
+            return new Bande(haut, bas + 1, gaucheSection, droiteSection, couleur);
         }
-        return new Bande(hautSection, basSection, gauche, droite + 1, couleur, pixelsVisibles);
+        return new Bande(hautSection, basSection, gauche, droite + 1, couleur);
     }
 
     // la couleur moyenne du groupe qui a le plus de pixels
@@ -178,27 +177,5 @@ public class Bandes {
     private boolean estSombre(Color pixel) {
         double luminosite = 0.299 * pixel.getRed() + 0.587 * pixel.getGreen() + 0.114 * pixel.getBlue();
         return luminosite < LUMINOSITE_MIN;
-    }
-
-    private Rectangle zoneVisible(BufferedImage image) {
-        int gauche = image.getWidth();
-        int haut = image.getHeight();
-        int droite = -1;
-        int bas = -1;
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                Color pixel = new Color(image.getRGB(x, y), true);
-                if (pixel.getAlpha() >= OPACITE_MIN) {
-                    gauche = Math.min(gauche, x);
-                    haut = Math.min(haut, y);
-                    droite = Math.max(droite, x);
-                    bas = Math.max(bas, y);
-                }
-            }
-        }
-        if (droite == -1) {
-            return new Rectangle(); // image entièrement transparente
-        }
-        return new Rectangle(gauche, haut, droite - gauche + 1, bas - haut + 1);
     }
 }

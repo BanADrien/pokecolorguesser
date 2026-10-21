@@ -23,19 +23,34 @@ class PartieQuizTest {
     }
 
     @Test
-    void uneErreurCouteUneVieEtDoubleLesBandes() {
+    void uneErreurCouteUneVie() {
         PartieQuiz partie = partieAvecPikachu();
         assertEquals(1, partie.getNombreQuestions());
         assertEquals(3, partie.getVies());
-        assertEquals(8, partie.nombreDeBandes(8));
 
         assertFalse(partie.repondre(salameche));
 
         assertEquals(2, partie.getVies());
         assertEquals(2, partie.getEssai());
-        assertEquals(16, partie.nombreDeBandes(8));
         assertFalse(partie.isQuestionFinie());
         assertTrue(partie.getMauvaisesReponses().contains(salameche));
+    }
+
+    @Test
+    void lIndiceDependDesViesRestantes() {
+        PartieQuiz partie = partieAvecPikachu();
+        // 3 vies : des colonnes
+        assertEquals("colonnes", partie.getIndice());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndice());
+
+        // 2 vies : des lignes
+        partie.repondre(salameche);
+        assertEquals(PartieQuiz.INDICE_LIGNES, partie.getIndice());
+
+        // 1 vie : la silhouette
+        partie.repondre(carapuce);
+        assertEquals(1, partie.getVies());
+        assertEquals(PartieQuiz.INDICE_SILHOUETTE, partie.getIndice());
     }
 
     @Test
@@ -44,7 +59,6 @@ class PartieQuizTest {
         partie.repondre(salameche);
         partie.repondre(carapuce);
         assertEquals(1, partie.getVies());
-        assertEquals(32, partie.nombreDeBandes(8));
         assertFalse(partie.isQuestionFinie());
 
         assertFalse(partie.repondre(bulbizarre));
@@ -52,6 +66,8 @@ class PartieQuizTest {
         assertEquals(0, partie.getVies());
         assertTrue(partie.isQuestionFinie());
         assertEquals(0, partie.getScore());
+        // la silhouette reste affichée à côté du Pokémon dévoilé
+        assertEquals(PartieQuiz.INDICE_SILHOUETTE, partie.getIndice());
     }
 
     @Test
@@ -72,10 +88,11 @@ class PartieQuizTest {
         assertEquals(2, partie.getEssai());
         assertTrue(partie.isQuestionFinie());
 
-        // la question suivante redonne toutes les vies
+        // la question suivante redonne toutes les vies, et l'indice repart des colonnes
         partie.questionSuivante();
         assertEquals(2, partie.getNumeroQuestion());
         assertEquals(3, partie.getVies());
+        assertEquals(PartieQuiz.INDICE_COLONNES, partie.getIndice());
         assertTrue(partie.getMauvaisesReponses().isEmpty());
         assertTrue(partie.isDerniereQuestion());
         assertFalse(partie.isQuestionFinie());
