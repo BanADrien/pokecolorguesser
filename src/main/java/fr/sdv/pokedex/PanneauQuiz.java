@@ -79,6 +79,7 @@ public class PanneauQuiz extends JPanel {
         this.images = images;
 
         dessin.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        dessin.setAvecMiniatures(true); // les indices déjà vus restent en petit en haut de la case
         JPanel bas = creerBas();
         // à gauche les bandes et le résultat, à droite la colonne de réponse
         JPanel plateau = new JPanel(new BorderLayout());
@@ -356,21 +357,29 @@ public class PanneauQuiz extends JPanel {
         apresReponse();
     }
 
-    // L'indice qui correspond aux vies restantes (colonnes, lignes ou silhouette pixelisée), et la réponse cachée.
-    // L'image est déjà chargée : le calcul est immédiat.
+    // L'indice qui correspond aux vies restantes (colonnes, lignes ou silhouette pixelisée), les indices
+    // déjà vus en petit au-dessus, et la réponse cachée. L'image est déjà chargée : le calcul est immédiat.
     private void dessinerIndice() {
         String indice = partie.getIndice();
         dessin.nouvellesCases(imageQuestion);
+        for (String indiceVu : partie.getIndicesPrecedents()) {
+            dessin.ajouterMiniature(creerBandes(indiceVu));
+        }
         if (indice.equals(PartieQuiz.INDICE_SILHOUETTE)) {
             SilhouettePixelisee silhouette = new SilhouettePixelisee(imageQuestion, parametresPartie.getSections());
-            dessin.ajouterImage(silhouette.creerImage(), "Indice · silhouette pixelisée");
+            dessin.ajouterImage(silhouette.creerImage(), "Indice · " + PanneauBandes.decrire(silhouette));
         } else {
-            boolean vertical = indice.equals(PartieQuiz.INDICE_COLONNES);
-            Bandes bandes = new Bandes(imageQuestion, parametresPartie.getSections(),
-                    parametresPartie.isIgnorerContoursNoirs(), vertical);
+            Bandes bandes = creerBandes(indice);
             dessin.ajouterBandes(bandes, "Indice · " + PanneauBandes.decrire(bandes));
         }
         dessin.ajouterImage(null, "Réponse"); // un « ? » jusqu'à la fin de la question
+    }
+
+    // les colonnes (INDICE_COLONNES) ou les lignes (INDICE_LIGNES) de l'image de la question
+    private Bandes creerBandes(String indice) {
+        boolean vertical = indice.equals(PartieQuiz.INDICE_COLONNES);
+        return new Bandes(imageQuestion, parametresPartie.getSections(),
+                parametresPartie.isIgnorerContoursNoirs(), vertical);
     }
 
     private void afficherTypes(Pokemon pokemon) {

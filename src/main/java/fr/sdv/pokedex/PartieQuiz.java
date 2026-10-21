@@ -89,6 +89,19 @@ public class PartieQuiz {
         return INDICE_SILHOUETTE;
     }
 
+    // les indices déjà vus pendant la question, avant celui de getIndice(), dans l'ordre :
+    // aucun à 3 vies, les colonnes à 2 vies, les colonnes puis les lignes à 1 vie (et à 0)
+    public ArrayList<String> getIndicesPrecedents() {
+        ArrayList<String> indices = new ArrayList<>();
+        if (vies <= 2) {
+            indices.add(INDICE_COLONNES);
+        }
+        if (vies <= 1) {
+            indices.add(INDICE_LIGNES);
+        }
+        return indices;
+    }
+
     // renvoie true si c'est le bon Pokémon (il rapporte les vies qui restent) ; sinon une vie est perdue
     public boolean repondre(Pokemon choix) {
         if (choix.getId() == getPokemon().getId()) {

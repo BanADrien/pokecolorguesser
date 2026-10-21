@@ -26,10 +26,17 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
       sans dépasser la largeur du Pokémon en pixels ;
     - 2 vies : le même nombre de **lignes horizontales**, sans dépasser sa hauteur ;
     - 1 vie : la **silhouette pixelisée** du Pokémon, à la même taille et à la même place que son sprite.
-      Le Pokémon est découpé en cases carrées, environ 12 × 12 (le même réglage : 12 cases au plus
-      sur son plus grand côté), et une case est noire si le Pokémon en remplit au moins la moitié.
-      La forme générale reste, mais les détails fins (oreilles, queue, pattes) disparaissent ;
+      Le Pokémon est découpé en cases carrées, deux fois plus fines que les bandes : environ 24 × 24
+      avec le réglage par défaut (24 cases au plus sur son plus grand côté, et pas plus que de pixels),
+      et une case est noire si le Pokémon en remplit au moins 40 %. La forme reste bien reconnaissable,
+      mais sans les couleurs ni les petits détails ;
     - quand la dernière vie est perdue, le Pokémon est dévoilé.
+  - **Les indices déjà vus restent affichés en petit** en haut de la case « Indice » : à 2 vies,
+    la miniature des colonnes ; à 1 vie, celles des colonnes puis des lignes, chacune dans un petit cadre
+    gris avec sa légende (« 12 colonnes », « 12 lignes »). Elles restent quand le Pokémon est dévoilé.
+    Elles ne touchent jamais l'indice en grand : pour un grand Pokémon (Lugia, Éthernatos), les cases
+    « Indice » et « Réponse » deviennent un peu plus hautes, toutes les deux, pour que l'indice
+    et le sprite dévoilé restent à la même échelle et à la même place.
   - **« Passer »** montre l'indice suivant, mais coûte une vie, comme une erreur (sans compter de mauvais
     Pokémon). Avec une seule vie, « Passer » perd la question.
   - **Points** : un Pokémon trouvé rapporte les vies qui restent, donc 3 points du premier coup,
@@ -43,8 +50,8 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
     dans l'ordre alphabétique. On choisit avec les flèches ↑ ↓ puis Entrée, ou d'un clic.
   - Une mauvaise réponse coûte une vie (les cœurs au-dessus du champ) et le Pokémon proposé
     disparaît de la liste.
-- **Paramètres** : nombre de sections (1 à 32, 12 par défaut : le nombre de colonnes, puis de lignes,
-  puis de cases sur le plus grand côté de la silhouette pixelisée),
+- **Paramètres** : nombre de sections (1 à 32, 12 par défaut : le nombre de colonnes, puis de lignes ;
+  la silhouette pixelisée a deux fois plus de cases sur son plus grand côté, 24 par défaut),
   nombre de questions (1 à 50), contours noirs ignorés ou non (pour les colonnes et les lignes),
   types en indice et générations utilisées par le quiz (la liste des réponses ne propose que ces générations).
   Un aperçu montre les trois indices et la réponse, et les réglages sont enregistrés automatiquement.
@@ -52,15 +59,15 @@ et un quiz pour retrouver un Pokémon à partir de ses bandes de couleurs, puis 
 
 ![Onglet Pokédex : génération 1 et type Feu](docs/images/pokedex.png)
 
-![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette pixelisée, puis la réponse](docs/images/indices-3-etapes.png)
+![Les trois indices pour Lugia : 12 colonnes, 12 lignes, la silhouette 24 × 24, puis la réponse](docs/images/indices-3-etapes.png)
 
-| Après une erreur : 2 vies, 12 lignes | Après deux erreurs : 1 vie, la silhouette pixelisée |
+| Après une erreur : 2 vies, 12 lignes et la miniature des colonnes | Après deux erreurs : 1 vie, la silhouette 24 × 24 et deux miniatures |
 |---|---|
-| ![Après une erreur, l'indice passe en lignes](docs/images/quiz-apres-erreur.png) | ![Après deux erreurs, l'indice est la silhouette pixelisée](docs/images/quiz-silhouette.png) |
+| ![Après une erreur, l'indice passe en lignes et les colonnes restent en petit](docs/images/quiz-apres-erreur.png) | ![Après deux erreurs, l'indice est la silhouette pixelisée, avec les colonnes et les lignes en petit](docs/images/quiz-silhouette.png) |
 
-| Réponse ratée : 0 point | Après « Passer » : 2 vies, 12 lignes |
+| Réponse ratée : 0 point | Après « Passer » (Lugia) : 2 vies, 12 lignes |
 |---|---|
-| ![Réponse ratée : le vrai Pokémon est dévoilé à côté de sa silhouette pixelisée](docs/images/quiz-reponse-ratee.png) | ![Après « Passer », l'indice passe en lignes et une vie est perdue](docs/images/quiz-passer.png) |
+| ![Réponse ratée : le vrai Pokémon est dévoilé à côté de sa silhouette pixelisée et des miniatures](docs/images/quiz-reponse-ratee.png) | ![Après « Passer », l'indice passe en lignes, une vie est perdue et les colonnes restent en petit](docs/images/quiz-passer.png) |
 
 | Fin de partie | Onglet Paramètres |
 |---|---|
@@ -126,12 +133,12 @@ Il crée `cache/` et `parametres.properties` dans le dossier d'où on le lance.
 │   ├── ModeleTableau.java          contenu du tableau : tous les Pokémon et ceux qui passent les filtres
 │   ├── Bandes.java, Bande.java     découpage d'une image en colonnes ou en lignes de couleurs
 │   ├── SilhouettePixelisee.java    silhouette en cases carrées (le dernier indice)
-│   ├── PartieQuiz.java             déroulement d'une partie (vies, indice, points), sans interface graphique
+│   ├── PartieQuiz.java             déroulement d'une partie (vies, indices, points), sans interface graphique
 │   ├── Suggestions.java            Pokémon proposés sous le champ de réponse, sans interface graphique
 │   ├── Parametres.java             réglages du quiz
 │   └── PanneauQuiz.java, PanneauParametres.java, PanneauBandes.java,
 │       RenduSuggestion.java, IconeVies.java                     interface du quiz
-├── src/test/java/fr/sdv/pokedex/   37 tests JUnit (sans réseau ni fenêtre)
+├── src/test/java/fr/sdv/pokedex/   40 tests JUnit (sans réseau ni fenêtre)
 └── docs/images/                    captures d'écran de ce README
 ```
 
